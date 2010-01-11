@@ -1,0 +1,234 @@
+#ifndef __AGGREGATOR_HPP__
+#define __AGGREGATOR_HPP__
+
+#include <base/time.h>
+#include <vector>
+#include <queue>
+#include <algorithm>
+#include <boost/function.hpp>
+#include <boost/tuple/tuple.hpp>
+#include <stdexcept> 
+#include <iostream>
+
+namespace Aggregator {
+
+    class ReadingEstimator
+    {
+	class StreamBase
+	{
+	    public:
+		StreamBase() : overdue(false) {}
+		bool overdue;
+		virtual void pop() = 0;
+		virtual bool hasData() = 0;
+		virtual base::Time nextTimeStamp() = 0;
+	};
+
+	typedef boost::tuple<base::Time,bool,StreamBase*> item;
+	static bool compare_item(item a, item b) {return boost::get<0>(a) < boost::get<0>(b);}
+
+	template <class T> class Stream : public StreamBase
+	{
+	    typedef std::pair<base::Time,T> item;
+	    std::queue<item> buffer;
+	    int bufferSize;
+	    boost::function<void (base::Time ts, T value)> callback;
+	    base::Time period; 
+	    base::Time lastTime;
+
+	public:
+	    Stream( boost::function<void (base::Time ts, T value)> callback, int bufferSize = 10, base::Time period = base::Time() )
+		: bufferSize( bufferSize ), callback(callback), period(period) {}
+
+	    void push( base::Time ts, T data ) 
+	    { buffer.push( std::make_pair(ts, data) ); }
+
+	    void pop() 
+	    { 
+		if( hasData() )
+		{
+		    overdue = false;
+		    
+		    if( buffer.size() == 1 )
+			lastTime = buffer.back().first;
+
+		    callback( buffer.front().first, buffer.front().second );
+
+		    buffer.pop();
+		}
+	    }
+
+	    bool hasData()
+	    { return buffer.size() > 0; }
+
+	    base::Time nextTimeStamp()
+	    {
+		if( hasData() )
+		    return buffer.front().first;
+		else if( !period.isNull() && !lastTime.isNull() )
+		    return lastTime + period;
+		else 
+		    return base::Time();
+	    }
+	};
+
+	typedef std::vector<StreamBase*> stream_vector;
+	stream_vector streams;
+	base::Time timeout;
+	base::Time latest_ts, current_ts;
+
+    public:
+	ReadingEstimator(base::Time timeout = base::Time(1))
+	    : timeout(timeout) {}
+
+	~ReadingEstimator()
+	{
+	    for(stream_vector::iterator it=streams.begin();it != streams.end();it++)
+		delete *it;
+	}
+
+	/** Set the time the Estimator will wait for an expected reading on any of the streams.
+	 * This number effectively puts an upper limit to the lag that can be created due to 
+	 * delay or missing values on the channels.
+	 */
+	void setTimeout( base::Time t )
+	{
+	    timeout = t;
+	}
+
+	/** Will register a stream with the aggregator.
+	 *
+	 * @param callback - will be called for data gone through the synchronization process
+	 * @param bufferSize - The size of the internal FIFO buffer. This should be at least 
+	 *  	the amount of samples that can occur in a timeout period.
+	 * @param period - time between sensor readings. This will be used to estimate when the 
+	 *	next reading should arrive, so out of order arrivals are possible. Set to 0 if not a periodic stream
+	 *
+	 * @result - stream index, which is used to identify the stream (e.g. for push).
+	 */
+	template <class T> int registerStream( boost::function<void (base::Time ts, T value)> callback, int bufferSize = 10, base::Time period = base::Time() ) 
+	{
+	    streams.push_back( new Stream<T>(callback, bufferSize, period) );
+	    return streams.size() - 1;
+	}
+
+	/** Push new data into the stream
+	 * @param ts - the timestamp of the data item
+	 * @param data - the data added to the stream
+	 */
+	template <class T> void push( int idx, base::Time ts, const T& data )
+	{
+	    if( idx < 0 )
+		throw std::runtime_error("invalid stream index.");
+
+	    // this is potentially dangerous, if the wrong streamtype is 
+	    // supplied here. 
+	    Stream<T>* stream = dynamic_cast<Stream<T>*>(streams[idx]);
+
+	    stream->push( ts, data );
+	}
+
+	/** Test if data in a stream is running late
+	 * Note, that the current time is based on the latest reading from another 
+	 * stream and not on the actual system time.
+	 *
+	 * @param idx - index of the stream to be tested
+	 * @result - will return true if the next expected ts from this stream is already older 
+	 *           than the latest timestamp + the timout offset.
+	 */
+	bool isOverdue( int idx )
+	{
+	    return streams[idx]->overdue;
+	}
+
+	/** This will go through the available streams and look for the
+	 * oldest available data. The data can be either existing are predicted
+	 * through the period. 
+	 * 
+	 * There are three different cases that can happen:
+	 *  - The data is already available. In this case that data is forwarded
+	 *    to the callback.
+	 *  - The data is not yet available, and the time difference between oldest
+	 *    data and newest data is below the timeout threshold. In this case
+	 *    no data is called.
+	 *  - The data is not yet available, and the timeout is reached. In this
+	 *    case, the oldest data (which is obviously non-available) is ignored,
+	 *    and only newer data is considered.
+	 *
+	 *  @result - true if there is more available data in any of the streams
+	 */
+	bool step()
+	{
+	    if( !streams.size() )
+		return false;
+
+	    std::vector<item> items;
+	    bool listHasData = false;
+	    for(stream_vector::iterator it=streams.begin();it != streams.end();it++)
+	    {
+		bool hasData = (*it)->hasData();
+		base::Time ts = (*it)->nextTimeStamp();
+
+		// stream is only considered if it either has data,
+		// or is expecting data
+		if( hasData || !ts.isNull() )
+		{
+		    items.push_back( boost::make_tuple( 
+				ts,
+				hasData,
+				*it ) );
+		}
+
+		// see if we have any real data
+		listHasData |= hasData;
+	    }
+
+	    // return false if we just don't have any data
+	    if( !items.size() || !listHasData )
+		return false;
+
+	    // sort for timestamp
+	    std::sort(items.begin(), items.end(), compare_item);
+
+	    // get the latest real data
+	    for(std::vector<item>::reverse_iterator it = items.rbegin();it != items.rend();++it)
+	    {
+		if( boost::get<1>(*it) )
+		{
+		    latest_ts = boost::get<0>(items.back());
+		    break;
+		}
+	    }
+
+
+	    for(std::vector<item>::iterator it=items.begin();it != items.end();it++)
+	    {
+
+		if( boost::get<1>(*it) ) 
+		{
+		    // if stream has data, pop that data
+		    current_ts = boost::get<0>(*it);
+		    boost::get<2>(*it)->pop();
+		    return true;
+		}
+		else if( (boost::get<0>(*it) + timeout) > latest_ts )
+		{
+		    // if there is no data, but the expected data has
+		    // not run out yet, wait for it.
+		    return false;
+		}
+		else
+		{
+		    // mark this stream as overdue
+		    boost::get<2>(*it)->overdue = true;
+		}
+	    }
+
+	    return false;
+	}
+
+	base::Time getLatency() { return latest_ts - current_ts; };
+    };
+}
+
+#endif
