@@ -5,10 +5,12 @@
 #include <Eigen/Geometry>
 #include <Eigen/LU>
 
+
 #ifndef M_PI
 #define M_PI 3.141592653589793238462643 
 #endif
 
+using namespace std;
 namespace asguard 
 {
     /** Singleton class which provides coordinate transformations for the 
@@ -46,7 +48,9 @@ namespace asguard
 	 */
 	Eigen::Quaterniond R_i2w( const Eigen::Quaterniond& R_i2xw )
 	{
-	    return R_xw2w * R_i2xw;
+	 
+	   return  R_xw2w * R_i2xw ;
+	    
 	};
 
     private:
@@ -56,14 +60,17 @@ namespace asguard
 
 	Transform()
 	{
-	    sensorHeadAngle = 10.0/180.0*M_PI;
+	    
+	    sensorHeadAngle = -8.2/180.0*M_PI;
 
 	    z_g = Eigen::Vector3d( 0, -0.425, 0.17 );
 	    z_i = Eigen::Vector3d( 0, 0.03, 0.10 );
 	    z_ls = Eigen::Vector3d( 0, 0.05, 0.15 );
-    
-	    R_xw2w = Eigen::AngleAxisd( M_PI/2.0, Eigen::Vector3d::UnitZ() );
-	    R_b2i = Eigen::AngleAxisd( sensorHeadAngle, Eigen::Vector3d::UnitY() ) * Eigen::AngleAxisd( M_PI/2.0, Eigen::Vector3d::UnitZ() );
+	    
+	    
+	    R_xw2w=Eigen::AngleAxisd(M_PI/2, Eigen::Vector3d::UnitZ()); 
+           
+	    R_b2i = Eigen::AngleAxisd( sensorHeadAngle, Eigen::Vector3d::UnitY() ) * Eigen::AngleAxisd(M_PI/2.0, Eigen::Vector3d::UnitZ() );
 	};
 	Transform(Transform const&);
 	Transform& operator=(Transform const&);
