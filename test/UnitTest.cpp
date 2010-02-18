@@ -30,22 +30,25 @@ BOOST_AUTO_TEST_CASE( transformation )
 BOOST_AUTO_TEST_CASE( aggregator )
 {
     Aggregator::ReadingEstimator aggr;
+    aggr.setTimeout( base::Time(2,0) );
 
-    int s1 = aggr.registerStream<int>( &reading_callback<int>, 5, base::Time(1,0) ); 
+    // callback, buffer_size, period_time
+    int s1 = aggr.registerStream<int>( &reading_callback<int>, 4, base::Time(1,0) ); 
     int s2 = aggr.registerStream<string>( &reading_callback<string>, 2, base::Time(2,0) ); 
     int s3 = aggr.registerStream<double>( &reading_callback<double> ); 
 
-    aggr.push( s1, base::Time(1), 2 );
-    aggr.push( s2, base::Time(3), string("test") );
-    aggr.push( s1, base::Time(2), 555 );
-    aggr.push( s1, base::Time(5), 1024 );
-    aggr.push( s3, base::Time(4), 1.55 );
+    aggr.push( s1, base::Time(1), 1 );
+    aggr.push( s2, base::Time(0), string("test1") );
+    aggr.push( s2, base::Time(2), string("test2") );
+    aggr.push( s2, base::Time(4), string("test3") );
+    aggr.push( s1, base::Time(2), 2 );
+    aggr.push( s1, base::Time(2), 3 );
+    aggr.push( s1, base::Time(3), 4 );
+    aggr.push( s1, base::Time(4), 5 );
+    aggr.push( s1, base::Time(5), 6 );
+    aggr.push( s3, base::Time(5), 1.55 );
 
-    aggr.step();
-    aggr.step();
-    aggr.step();
-    aggr.step();
-    aggr.step();
+    while( aggr.step() );
 }
 
 BOOST_AUTO_TEST_CASE( estimator )

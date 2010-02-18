@@ -41,7 +41,14 @@ namespace Aggregator {
 		: bufferSize( bufferSize ), callback(callback), period(period) {}
 
 	    void push( base::Time ts, T data ) 
-	    { buffer.push( std::make_pair(ts, data) ); }
+	    { 
+		// if the buffer is full, make some space
+		// sorry old data, you gotta go!
+		while( bufferSize > 0 && buffer.size() >= bufferSize )
+		    buffer.pop();
+
+		buffer.push( std::make_pair(ts, data) ); 
+	    }
 
 	    void pop() 
 	    { 
@@ -120,6 +127,12 @@ namespace Aggregator {
 	{
 	    if( idx < 0 )
 		throw std::runtime_error("invalid stream index.");
+
+	    // if the timestamp of the data item comming in is older than the current time - timeout, we don't even put it into the queue
+	    if( (ts + timeout) < current_ts )
+	    {
+		return;
+	    }
 
 	    // this is potentially dangerous, if the wrong streamtype is 
 	    // supplied here. 
@@ -227,7 +240,14 @@ namespace Aggregator {
 	    return false;
 	}
 
+	/** latency is the time difference between the latest data item that
+	 * has come in, and the latest data item that went out
+	 */
 	base::Time getLatency() { return latest_ts - current_ts; };
+
+	/** return the time of the last data item that went out
+	 */
+	base::Time getCurrentTime() { return current_ts; };
     };
 }
 
