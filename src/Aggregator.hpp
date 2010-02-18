@@ -19,7 +19,7 @@ namespace Aggregator {
 	    public:
 		StreamBase() : overdue(false) {}
 		bool overdue;
-		virtual void pop() = 0;
+		virtual void pop(bool late) = 0;
 		virtual bool hasData() = 0;
 		virtual base::Time nextTimeStamp() = 0;
 	};
@@ -50,16 +50,20 @@ namespace Aggregator {
 		buffer.push( std::make_pair(ts, data) ); 
 	    }
 
-	    void pop() 
+	    /** take the last item of the stream queue and 
+	     * call the callback in case the data is not late
+	     */
+	    void pop( bool late = false ) 
 	    { 
 		if( hasData() )
 		{
-		    overdue = false;
-		    
 		    if( buffer.size() == 1 )
 			lastTime = buffer.back().first;
 
-		    callback( buffer.front().first, buffer.front().second );
+		    if( !late ) {
+			overdue = false;
+			callback( buffer.front().first, buffer.front().second );
+		    }
 
 		    buffer.pop();
 		}
@@ -219,10 +223,14 @@ namespace Aggregator {
 
 		if( boost::get<1>(*it) ) 
 		{
-		    // if stream has data, pop that data
-		    current_ts = boost::get<0>(*it);
-		    boost::get<2>(*it)->pop();
-		    return true;
+		    bool late = boost::get<0>(*it) < current_ts;
+		    // if stream has current data, pop that data
+		    // but make sure that no late data gets through
+		    boost::get<2>(*it)->pop(late);
+		    if( !late ) {
+			current_ts = boost::get<0>(*it);
+			return true;
+		    }
 		}
 		else if( (boost::get<0>(*it) + timeout) > latest_ts )
 		{
