@@ -62,8 +62,11 @@ namespace asguard
 	{
 	    
 	    sensorHeadAngle = -8.2/180.0*M_PI;
-
-	    z_g = Eigen::Vector3d( 0, -0.425, 0.17 );
+	    
+	    //z_g = Eigen::Vector3d( 0, -0.425, 0.17 );
+	  
+	    //z_g = Eigen::Vector3d( -0.0, -0.325, 0.17 );
+	    z_g = Eigen::Vector3d( 0.18, -0.23, 0.27 );
 	    z_i = Eigen::Vector3d( 0, 0.03, 0.10 );
 	    z_ls = Eigen::Vector3d( 0, 0.05, 0.15 );
 	    
