@@ -17,15 +17,15 @@ void PositionKF::update( Eigen::Vector3d v )
 	
 	//atitude
 	x_kp.yaw()=x_kp.yaw();
-	//x_kp.yaw()(0,0)=-10*3.14/180;
-	//x_kp.yaw()(0,0)=0;
+	//x_kp.yaw()(0,0)=-28*3.141592653589793238462643383279/180;
+	
+	
 	
 	//Recalculates the new Rotation of yaw bias, takes from nav to new nav frame 
 	R_n_n=Eigen::AngleAxisd(x_kp.yaw()(0,0), Eigen::Vector3d::UnitZ()); 
 	
 	//Jacobian of the state transition matrix 
-	Eigen::Matrix<double, State::SIZE, State::SIZE>  JF;
-	      JF=JacobianF(v); 
+	JacobianF(v); 
 	
 	//std::cout<<" JF = "<<std::endl<<JF<<std::endl;
 	//covariance update 
@@ -37,6 +37,7 @@ void PositionKF::update( Eigen::Vector3d v )
 	// be a correction or not.
 	x_k.vector() = x_kp.vector();
 	P_k = P_kp;
+	
 	
 	
 }
@@ -70,9 +71,8 @@ void PositionKF::correction_pos( Eigen::Vector3d p )
     std::cout<<" yaw = "<<x_kp.yaw()(0,0)*180/3.14<<std::endl;
 }
 
-Eigen::Matrix<double, State::SIZE, State::SIZE>  PositionKF::JacobianF ( Eigen::Vector3d v ){
+void PositionKF::JacobianF ( Eigen::Vector3d v ){
     
-    Eigen::Matrix<double, State::SIZE, State::SIZE> JF; 
     JF.setIdentity(); 
     
     //derivate of the rotation do to yaw bias 
@@ -84,9 +84,6 @@ Eigen::Matrix<double, State::SIZE, State::SIZE>  PositionKF::JacobianF ( Eigen::
     JF.block<3,1>(0,3)
 	  = dR_z*v*d_t;
    
-   //  std::cout<<" JF \t "<<JF<<std::endl;  
-    return JF; 
-	
   	
 }
 
