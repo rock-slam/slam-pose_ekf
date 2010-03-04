@@ -48,6 +48,10 @@ namespace KalmanFilter {
 
 	/** state transition matrix */
 	Eigen::Matrix<double, State::SIZE, State::SIZE> F;
+	
+	/** Jacobian state transition matrix */
+	Eigen::Matrix<double, State::SIZE, State::SIZE> JF;
+	
 	/** process noise covariance matrix */
 	Eigen::Matrix<double, State::SIZE, State::SIZE> Q;
 
@@ -75,7 +79,7 @@ namespace KalmanFilter {
 	void correction_pos( Eigen::Vector3d p );
 	
 	/**jacobian state transition*/ 
-	Eigen::Matrix<double, State::SIZE, State::SIZE> JacobianF ( Eigen::Vector3d v );
+	void JacobianF ( Eigen::Vector3d v );
 	
 	
     };
