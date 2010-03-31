@@ -21,7 +21,6 @@ include_directories(./src)
 
 set(POSE_HDRS
     src/Aggregator.hpp
-    src/AsguardTransform.hpp
     src/KalmanFilter.hpp
     )
 

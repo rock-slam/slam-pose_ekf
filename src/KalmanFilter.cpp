@@ -13,12 +13,10 @@ void PositionKF::update( Eigen::Vector3d v )
 	
 	 //State transition 
 	//position
-	x_kp.xi()=x_kp.xi()+R_n_n*v*d_t;
+	x_kp.xi()=x_kp.xi()+v*d_t;
 	
 	//atitude
 	x_kp.yaw()=x_kp.yaw();
-	//x_kp.yaw()(0,0)=-28*3.141592653589793238462643383279/180;
-	
 	
 	
 	//Recalculates the new Rotation of yaw bias, takes from nav to new nav frame 
