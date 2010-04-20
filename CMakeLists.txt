@@ -42,6 +42,12 @@ configure_file(pose_estimator.pc.in pose_estimator.pc @ONLY)
 install(FILES ${CMAKE_BINARY_DIR}/pose_estimator.pc DESTINATION lib/pkgconfig)
 
 include_directories(${PROJECT_SOURCE_DIR})
-add_subdirectory(test)
+
+pkg_check_modules(ASGUARD asguard)
+if (ASGUARD_FOUND)
+    add_subdirectory(test)
+else()
+    message(STATUS robots/asguard not installed, the test suite will not be built)
+endif()
 
 
