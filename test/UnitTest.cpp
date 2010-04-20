@@ -1,6 +1,5 @@
 #include "Aggregator.hpp"
 #include "KalmanFilter.hpp"
-#include <asguard/AsguardTransform.hpp>
 
 #include <map>
 #include <vector>
@@ -13,25 +12,6 @@ using namespace std;
 template <class T> void reading_callback(base::Time ts, T data)
 {
     cout << "ts: " << ts.seconds << ":" << ts.microseconds << " data: " << data << endl;
-}
-
-BOOST_AUTO_TEST_CASE( transformation )
-{
-    // get transform instance
-    asguard::Transform& tf( asguard::Transform::Instance() );
-
-    Eigen::Quaterniond R_i2xw = Eigen::Quaterniond::Identity();
-    Eigen::Vector3d acc = Eigen::Vector3d( 1.8, .5, 9.65 );
-
-    cout << "Transformation test" << endl;
-    cout << endl << tf.R_b2i.inverse() * acc << endl;
-
-    Eigen::Quaterniond R_xw2w;
-    R_xw2w =  Eigen::AngleAxisd( M_PI/2.0, Eigen::Vector3d::UnitZ() );
-    Eigen::Vector3d north = R_xw2w * Eigen::Vector3d(1,2,3);
-    cout << endl << "rotation test : " << endl << north << endl;
-
-
 }
 
 BOOST_AUTO_TEST_CASE( aggregator )
