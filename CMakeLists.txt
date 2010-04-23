@@ -22,10 +22,12 @@ include_directories(./src)
 set(POSE_HDRS
     src/Aggregator.hpp
     src/KalmanFilter.hpp
+    src/ExtendedKalmanFilter.hpp
+    src/PositionBiasEKF.hpp
     )
 
 set(POSE_SRCS
-    src/KalmanFilter.cpp
+    src/PositionBiasEKF.cpp
     )
 
 add_library(pose_estimator SHARED ${POSE_SRCS})
