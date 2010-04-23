@@ -4,83 +4,72 @@
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
+
 namespace KalmanFilter {
-    class State
+ 
+template <unsigned int SIZE, unsigned int INPUT_SIZE, unsigned int MEASUREMENT_SIZE> 
+class KF
     {
-    public:
-	static const int SIZE = 4;
-	typedef Eigen::Matrix<double,SIZE,1> vector_t;
-
-    protected:
       
-	vector_t _x; 
-	Eigen::Block<vector_t, 3, 1> _xi;
-	Eigen::Block<vector_t, 1, 1> _yaw;
+      public:
 	
+	/** do i need to declare the size as dynamic ? */ 
+	
+	/** state estimate */
+	Eigen::Matrix<double,SIZE,1>  x;
+	
+	/** covariance matrix */
+	Eigen::Matrix<double, SIZE, SIZE> P;
 
-    public:
+
+      public:
+	/** what is this line */ 
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-	State() :
-	    _x(vector_t::Zero()), _xi( _x.segment<3>(0) ),_yaw(_x.segment<1>(3)) {};
-
-	vector_t& vector() {return _x;};
-	Eigen::Block<vector_t, 3, 1>& xi() {return _xi;}	
-	Eigen::Block<vector_t, 1, 1>& yaw() {return _yaw;}
 	
-    };
+	/** update step 
+	    u - Input 
+	    B - relation between input and state 
+	    F - state transition
+	    Q - process noise covariance matrix, 
+	    */
+	void update(Eigen::Matrix<double, INPUT_SIZE, 1> u,
+	      Eigen::Matrix<double,SIZE ,INPUT_SIZE> B, 
+	      Eigen::Matrix<double, SIZE, SIZE> F,
+	      Eigen::Matrix<double, SIZE, SIZE> Q )
+	{
 
-    class PositionKF
-    {
-    public:
-	static const int INPUT_SIZE = 3;
-	static const int MEASUREMENT_SIZE = 3;
+		//State transition 
+		x=F*x+B*u; 
+		
+		//covariance update 
+		P = F*P*F.transpose() + Q;
+		
+	}
+ 
+	/** correction step, 
+	 p - observation 
+	 H - observation function
+	 R - measurement noise covariance matrix
+	*/	
+	void correction( Eigen::Matrix<double, MEASUREMENT_SIZE, 1> p,
+	  Eigen::Matrix<double, MEASUREMENT_SIZE, SIZE> H,
+	  Eigen::Matrix<double, MEASUREMENT_SIZE, MEASUREMENT_SIZE> R)	  
+	{
+	    // correct the estimate and covariance according to measurement
+	    
+	    Eigen::Matrix<double, MEASUREMENT_SIZE, 1> y = p - H*x;
+	    
+	    Eigen::Matrix<double, MEASUREMENT_SIZE, MEASUREMENT_SIZE> S = H*P*H.transpose()+R;
 
-	/** time step for measurements */
-	double d_t;
-
-	/** state estimate, at time k and k+ */
-	State x_k, x_kp;
-	/** covariance matrix at time k and kp */
-	Eigen::Matrix<double, State::SIZE, State::SIZE> P_k, P_kp;
-
-	/** input matrix */
-	Eigen::Matrix<double, State::SIZE, INPUT_SIZE> B;
-
-	/** state transition matrix */
-	Eigen::Matrix<double, State::SIZE, State::SIZE> F;
-	
-	/** Jacobian state transition matrix */
-	Eigen::Matrix<double, State::SIZE, State::SIZE> JF;
-	
-	/** process noise covariance matrix */
-	Eigen::Matrix<double, State::SIZE, State::SIZE> Q;
-
-	/** observation model Position*/
-	Eigen::Matrix<double, MEASUREMENT_SIZE, State::SIZE> H_pos;
-	
-	/** measurement noise covariance matrix */
-	Eigen::Matrix<double, MEASUREMENT_SIZE, MEASUREMENT_SIZE> R_pos;
-	
-	/** these are just here for storage */
-	Eigen::Quaternion<double> q;
-	Eigen::Vector3d omega;
-	Eigen::Quaterniond R_n_n; 
+	    Eigen::Matrix<double, SIZE, MEASUREMENT_SIZE> K = P*H.transpose()*S.inverse();
+	  
+	    x = x + K*y;
+	    
+	    P = (Eigen::Matrix<double, SIZE, SIZE>::Identity() - K*H)*P;
+	    
+	}
 
 
-
-
-    public:
-	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-	/** update step taking velocity in erroneous ENU frame as parameter */
-	void update( Eigen::Vector3d v );
-
-	/** correction step, taking absolute position data */
-	void correction_pos( Eigen::Vector3d p );
-	
-	/**jacobian state transition*/ 
-	void JacobianF ( Eigen::Vector3d v );
-	
 	
     };
 }
