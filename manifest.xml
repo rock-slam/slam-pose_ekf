@@ -1,0 +1,13 @@
+<package>
+    <description brief="Pose Estimation Library">
+        This library provides a basic, EKF based, implementation for a pose
+        estimator that is able to fuse IMU, odometry and global positioning
+        information (GPS)
+    </description>
+    <author>Jakob Schwendner/jakob.schwendner@dfki.de</author>
+    <copyright>
+        DFKI/robotik@dfki.de
+    </copyright>
+
+    <depend package="base" />
+</package>
