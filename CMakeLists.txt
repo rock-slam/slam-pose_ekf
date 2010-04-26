@@ -24,10 +24,12 @@ set(POSE_HDRS
     src/KalmanFilter.hpp
     src/ExtendedKalmanFilter.hpp
     src/PositionBiasEKF.hpp
+    src/GlobalSlipDetection.hpp
     )
 
 set(POSE_SRCS
     src/PositionBiasEKF.cpp
+    src/GlobalSlipDetection.cpp
     )
 
 add_library(pose_estimator SHARED ${POSE_SRCS})
