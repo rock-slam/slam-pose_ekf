@@ -86,6 +86,8 @@ namespace PositionBiasEKF {
 	void configure_hook(); 
 	
       private: 
+	/** indicates if there is an initial good solution before starting to reject data */ 
+	bool goodInitialPosition; 
 	
 	/**jacobian state transition*/ 
 	Eigen::Matrix<double, State::SIZE, State::SIZE> jacobianF ( Eigen::Vector3d v_w, double d_t );

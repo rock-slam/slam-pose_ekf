@@ -10,6 +10,7 @@ PosBiasEKF::PosBiasEKF()
    
 {
   filter =  new ExtendedKalmanFilter::EKF<State::SIZE,INPUT_SIZE,MEASUREMENT_SIZE>;
+  goodInitialPosition=false;
 }
 
 PosBiasEKF::~PosBiasEKF(){
@@ -142,19 +143,26 @@ void PosBiasEKF::configure_hook(){
 bool PosBiasEKF::rejectData(Eigen::Matrix<double, MEASUREMENT_SIZE, 1> p){ 
 	
     //turned off 
-    return false; 
-
+   // return false; 
+    
     /** not trully tested code need to be redone */
    double distance = sqrt(pow(p(0,0)-x.xi().x(),2)+pow(p(1,0)-x.xi().y(),2));
    
    double pose_var_r = sqrt(P(0,0)+P(1,1)); 
    double gps_var_r = sqrt(R(0,0)+R(1,1));
    
-   if (distance < 2*(pose_var_r+gps_var_r) || distance < 1){
-     return false;
-   }else{
-     return true; 
+   if(gps_var_r<0.02){
+    goodInitialPosition =true; 
+    std::cout << " Good Initial Position " <<gps_var_r << std::endl; 
    }
+   if( goodInitialPosition)
+      if (distance < (pose_var_r+gps_var_r) || gps_var_r <0.03){
+	 return false;
+      }else{
+	  std::cout << " REJECTING GPS DATA " << std::endl; 
+	  
+	return true; 
+      }
    
 }
 
