@@ -155,7 +155,7 @@ bool PosBiasEKF::rejectData(Eigen::Matrix<double, MEASUREMENT_SIZE, 1> p){
     goodInitialPosition =true; 
     std::cout << " Good Initial Position " <<gps_var_r << std::endl; 
    }
-   if( goodInitialPosition)
+   if( goodInitialPosition){
       if (distance < (pose_var_r+gps_var_r) || gps_var_r <0.03){
 	 return false;
       }else{
@@ -163,7 +163,12 @@ bool PosBiasEKF::rejectData(Eigen::Matrix<double, MEASUREMENT_SIZE, 1> p){
 	  
 	return true; 
       }
-   
+   }else { 
+	std::cout << " REJECTING GPS DATA 2" << std::endl; 
+	return true; 
+	
+	
+   } 
 }
 
 
