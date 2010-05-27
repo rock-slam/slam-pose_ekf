@@ -145,30 +145,37 @@ bool PosBiasEKF::rejectData(Eigen::Matrix<double, MEASUREMENT_SIZE, 1> p){
     //turned off 
    // return false; 
     
-    /** not trully tested code need to be redone */
-   double distance = sqrt(pow(p(0,0)-x.xi().x(),2)+pow(p(1,0)-x.xi().y(),2));
+    // Compute the distance between the estimated position and the GPS-provided
+    // position
+    double gps_to_estimate_x = p(0, 0) - x.xi().x();
+    double gps_to_estimate_y = p(1, 0) - x.xi().y();
+    double distance = sqrt(gps_to_estimate_x * gps_to_estimate_x + gps_to_estimate_y * gps_to_estimate_y);
    
-   double pose_var_r = sqrt(P(0,0)+P(1,1)); 
-   double gps_var_r = sqrt(R(0,0)+R(1,1));
+    // Get an approximation of the error ellipses (just take the longest axis
+    // length)
+    double pose_var_r = sqrt(std::max(P(0,0), P(1,1))); 
+    double gps_var_r  = sqrt(std::max(R(0,0), R(1,1)));
    
-   if(gps_var_r<0.02){
-    goodInitialPosition =true; 
-    std::cout << " Good Initial Position " <<gps_var_r << std::endl; 
-   }
-   if( goodInitialPosition){
-      if (distance < (pose_var_r+gps_var_r) || gps_var_r <0.03){
-	 return false;
-      }else{
-	  std::cout << " REJECTING GPS DATA " << std::endl; 
-	  
-	return true; 
-      }
-   }else { 
-	std::cout << " REJECTING GPS DATA 2" << std::endl; 
-	return true; 
-	
-	
-   } 
+    if(!goodInitialPosition && gps_var_r < 0.1){ // was 0.1 
+        goodInitialPosition =true; 
+        std::cout << "got a good initial position with var=" << gps_var_r << std::endl; 
+    }
+
+    if(goodInitialPosition)
+    {
+        if (distance < (pose_var_r+gps_var_r) || gps_var_r <0.15){
+            return false;
+        }else{
+            std::cout << "GPS position does not agree with estimated position, rejecting GPS data" << std::endl; 
+
+            return true; 
+        }
+    }
+    else
+    {
+        std::cout << "no good initial position yet, rejecting GPS data" << std::endl; 
+        return true;
+    }
 }
 
 
