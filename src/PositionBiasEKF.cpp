@@ -112,7 +112,7 @@ void PosBiasEKF::processNoise(Eigen::Matrix<double, 3, 3> Q_w){
     Q_wb.block<3,3>(0,0)
       =R_w2wb_*Q_w *R_w2wb_.transpose();
     Q_wb(3,3)
-	  =0.0001*3.14/180;
+	  =0.0001*M_PI/180.0;
 } 
 
 /** calculates the measurement noise */ 
@@ -123,13 +123,15 @@ void PosBiasEKF::measurementNoise(Eigen::Matrix<double, MEASUREMENT_SIZE, MEASUR
 /** configurarion hook */ 
 void PosBiasEKF::configure_hook(){
 
+  goodInitialPosition=false;//true;
+
     Q_wb.setZero(); 
     R.setZero(); 
     
     filter->P.setIdentity();
     filter->P *= 1e10;
-    filter->P(3,3)=50*3.14/180; 
     
+    filter->P(3,3)=50*M_PI/180.0; 
     filter->x.setZero();
     
     //get the initial values
