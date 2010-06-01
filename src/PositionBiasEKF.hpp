@@ -3,7 +3,6 @@
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
-#include <asguard/Configuration.hpp>
 #include "ExtendedKalmanFilter.hpp"
 
 
