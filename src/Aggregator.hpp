@@ -10,7 +10,7 @@
 #include <stdexcept> 
 #include <iostream>
 
-namespace Aggregator {
+namespace aggregator {
 
     class ReadingEstimator
     {
@@ -20,8 +20,11 @@ namespace Aggregator {
 		StreamBase() : overdue(false) {}
 		bool overdue;
 		virtual void pop(bool late) = 0;
-		virtual bool hasData() = 0;
-		virtual base::Time nextTimeStamp() = 0;
+		virtual bool hasData() const = 0;
+		virtual base::Time nextTimeStamp() const = 0;
+		virtual std::pair<size_t, size_t> getBufferStatus() const = 0;
+
+		friend std::ostream &operator<<(std::ostream &stream, const aggregator::ReadingEstimator::StreamBase &base);
 	};
 
 	typedef boost::tuple<base::Time,bool,StreamBase*> item;
@@ -31,21 +34,28 @@ namespace Aggregator {
 	{
 	    typedef std::pair<base::Time,T> item;
 	    std::queue<item> buffer;
-	    int bufferSize;
+	    size_t bufferSize;
 	    boost::function<void (base::Time ts, T value)> callback;
 	    base::Time period; 
 	    base::Time lastTime;
 
 	public:
-	    Stream( boost::function<void (base::Time ts, T value)> callback, int bufferSize = 10, base::Time period = base::Time() )
+	    Stream( boost::function<void (base::Time ts, T value)> callback, size_t bufferSize = 10, base::Time period = base::Time() )
 		: bufferSize( bufferSize ), callback(callback), period(period) {}
+
+	    virtual std::pair<size_t, size_t> getBufferStatus() const
+	    {
+		return std::make_pair( buffer.size(), bufferSize );
+	    }
 
 	    void push( base::Time ts, T data ) 
 	    { 
 		// if the buffer is full, make some space
 		// sorry old data, you gotta go!
 		while( bufferSize > 0 && buffer.size() >= bufferSize )
+		{
 		    buffer.pop();
+		}
 
 		buffer.push( std::make_pair(ts, data) ); 
 	    }
@@ -69,10 +79,10 @@ namespace Aggregator {
 		}
 	    }
 
-	    bool hasData()
+	    bool hasData() const
 	    { return buffer.size() > 0; }
 
-	    base::Time nextTimeStamp()
+	    base::Time nextTimeStamp() const
 	    {
 		if( hasData() )
 		    return buffer.front().first;
@@ -89,7 +99,7 @@ namespace Aggregator {
 	base::Time latest_ts, current_ts;
 
     public:
-	ReadingEstimator(base::Time timeout = base::Time(1))
+	    explicit ReadingEstimator(base::Time timeout = base::Time(1))
 	    : timeout(timeout) {}
 
 	~ReadingEstimator()
@@ -242,12 +252,43 @@ namespace Aggregator {
 	/** latency is the time difference between the latest data item that
 	 * has come in, and the latest data item that went out
 	 */
-	base::Time getLatency() { return latest_ts - current_ts; };
+	base::Time getLatency() const { return latest_ts - current_ts; };
 
 	/** return the time of the last data item that went out
 	 */
-	base::Time getCurrentTime() { return current_ts; };
+	base::Time getCurrentTime() const { return current_ts; };
+
+	/** return the buffer status as a std::pair. first element in pair is
+	 * the current buffer fill and the second element is the buffer size 
+	 */
+	std::pair<size_t, size_t> getBufferStatus(int idx) const
+	{
+	    return streams[idx]->getBufferStatus();
+	}
+
+	friend std::ostream &operator<<(std::ostream &stream, const aggregator::ReadingEstimator::StreamBase &base);
+	friend std::ostream &operator<<(std::ostream &stream, const aggregator::ReadingEstimator &re);
     };
+
+    std::ostream &operator<<(std::ostream &stream, const aggregator::ReadingEstimator &re)
+    {
+	using ::operator <<;
+	stream << "latency: " << re.getLatency() << " current time: " << re.getCurrentTime() << std::endl;
+	for(size_t i=0;i<re.streams.size();i++)
+	{
+	    stream << i << ":" << *re.streams[i] << std::endl;
+	}
+
+	return stream;
+    }
+
+    std::ostream &operator<<(std::ostream &stream, const aggregator::ReadingEstimator::StreamBase &base)
+    {
+	using ::operator <<;
+	const std::pair<size_t, size_t> &status( base.getBufferStatus() );
+	stream << status.first << "\t" << status.second << "\t" << base.overdue << "\t" << base.nextTimeStamp();
+	return stream;
+    }
 }
 
 #endif

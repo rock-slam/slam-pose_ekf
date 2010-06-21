@@ -14,9 +14,9 @@ template <class T> void reading_callback(base::Time ts, T data)
     cout << "ts: " << ts.seconds << ":" << ts.microseconds << " data: " << data << endl;
 }
 
-BOOST_AUTO_TEST_CASE( aggregator )
+BOOST_AUTO_TEST_CASE( aggregator_test )
 {
-    Aggregator::ReadingEstimator aggr;
+    aggregator::ReadingEstimator aggr;
     aggr.setTimeout( base::Time(2,0) );
 
     // callback, buffer_size, period_time
@@ -35,7 +35,10 @@ BOOST_AUTO_TEST_CASE( aggregator )
     aggr.push( s1, base::Time(5), 6 );
     aggr.push( s3, base::Time(5), 1.55 );
 
-    while( aggr.step() );
+    while( aggr.step() )
+    {
+	std::cout << aggr;
+    }
 }
 
 BOOST_AUTO_TEST_CASE( estimator )
