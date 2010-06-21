@@ -138,9 +138,11 @@ namespace Aggregator {
 		return;
 	    }
 
-	    // this is potentially dangerous, if the wrong streamtype is 
-	    // supplied here. 
+	    if( ts > latest_ts )
+		latest_ts = ts;
+
 	    Stream<T>* stream = dynamic_cast<Stream<T>*>(streams[idx]);
+	    assert( stream );
 
 	    stream->push( ts, data );
 	}
@@ -206,17 +208,6 @@ namespace Aggregator {
 
 	    // sort for timestamp
 	    std::sort(items.begin(), items.end(), compare_item);
-
-	    // get the latest real data
-	    for(std::vector<item>::reverse_iterator it = items.rbegin();it != items.rend();++it)
-	    {
-		if( boost::get<1>(*it) )
-		{
-		    latest_ts = boost::get<0>(items.back());
-		    break;
-		}
-	    }
-
 
 	    for(std::vector<item>::iterator it=items.begin();it != items.end();it++)
 	    {
