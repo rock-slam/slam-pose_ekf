@@ -130,10 +130,13 @@ void PosBiasEKF::configure_hook(){
     
     filter->P.setIdentity();
     filter->P *= 1e10;
-    
+    //filter->P *= 1e-10;
     filter->P(3,3)=50*M_PI/180.0; 
     filter->x.setZero();
-    
+    filter->x(0)=-0.05; 
+    filter->x(1)=0.6491; 
+    filter->x(2)=0.4; 
+    filter->x(3)=-15.0*M_PI/180.0; 
     //get the initial values
     x.vector()=filter->x; 
     P=filter->P;
@@ -161,11 +164,13 @@ bool PosBiasEKF::rejectData(Eigen::Matrix<double, MEASUREMENT_SIZE, 1> p){
     if(!goodInitialPosition && gps_var_r < 0.1){ // was 0.1 
         goodInitialPosition =true; 
         std::cout << "got a good initial position with var=" << gps_var_r << std::endl; 
+	//return false; 
     }
-
+    
+    //return true; 
     if(goodInitialPosition)
     {
-        if (distance < (pose_var_r+gps_var_r) || gps_var_r <0.15){
+        if (distance < (pose_var_r+gps_var_r) || gps_var_r <0.3){
             return false;
         }else{
             std::cout << "GPS position does not agree with estimated position, rejecting GPS data" << std::endl; 
