@@ -1,23 +1,22 @@
-#include "EKF_PosBias_PosBias.hpp"
+#include "EKFPosYawBias.hpp"
 #include <Eigen/LU> 
 #include <math.h>
 
-using namespace poseEstimation;
-
+using namespace pose_estimator;
 
 /** CHECK */ 
-EkfPosYawBias::EkfPosYawBias() 
+EKFPosYawBias::EKFPosYawBias() 
 {
     filter =  new ExtendedKalmanFilter::EKF<State::SIZE,INPUT_SIZE,MEASUREMENT_SIZE>;
 }
 
-EkfPosYawBias::~EkfPosYawBias()
+EKFPosYawBias::~EKFPosYawBias()
 {
     delete filter; 
 }
 
 /** update the filter */ 
-void EkfPosYawBias::update( const Eigen::Vector3d &v_w, double d_t )
+void EKFPosYawBias::update( const Eigen::Vector3d &v_w, double d_t )
 {	
     //calculates the rotation from world to world frame corrected by the bias 
     Eigen::Quaterniond R_w2wb;
@@ -40,7 +39,31 @@ void EkfPosYawBias::update( const Eigen::Vector3d &v_w, double d_t )
     P=filter->P; 
 }
 
-void EkfPosYawBias::correctionPos( const Eigen::Matrix<double, MEASUREMENT_SIZE, 1> &p )
+void EKFPosYawBias::correctionPos( const Eigen::Matrix<double, 3, 1> &p )
+{
+    //jacobian of the observation function 
+    Eigen::Matrix<double, MEASUREMENT_SIZE, State::SIZE> J_H;
+    J_H.setIdentity();
+    J_H(3,3) = 0;
+
+    // copy the 3 vector of the position input to a 4 vector for the measurement
+    Eigen::Matrix<double, MEASUREMENT_SIZE, 1> p_m;
+    p_m.start<3>() = p;
+    p_m(3) = 0;
+
+    //observation function (the observation is linear so the h matrix can be defined as
+    Eigen::Matrix<double, MEASUREMENT_SIZE, 1> h
+	= J_H*x.vector(); 
+
+    //correct the state 
+    filter->correction( p_m,h, J_H, R); 
+
+    //get the corrected values 
+    x.vector()=filter->x; 
+    P=filter->P; 
+}
+
+void EKFPosYawBias::correction( const Eigen::Matrix<double, MEASUREMENT_SIZE, 1> &p )
 {
     //jacobian of the observation function 
     Eigen::Matrix<double, MEASUREMENT_SIZE, State::SIZE> J_H 
@@ -59,7 +82,7 @@ void EkfPosYawBias::correctionPos( const Eigen::Matrix<double, MEASUREMENT_SIZE,
 }
 
 /** Calculates the Jacobian of the transition matrix */ 
-Eigen::Matrix<double, State::SIZE, State::SIZE> EkfPosYawBias::jacobianF( const Eigen::Vector3d &v_w, double d_t )
+Eigen::Matrix<double, State::SIZE, State::SIZE> EKFPosYawBias::jacobianF( const Eigen::Vector3d &v_w, double d_t )
 {
     //derivate of the rotation do to yaw bias 
     Eigen::Matrix<double, 3,3> dR_z;
@@ -75,7 +98,7 @@ Eigen::Matrix<double, State::SIZE, State::SIZE> EkfPosYawBias::jacobianF( const 
 }
 
 /**jacobian observation model*/ 
-Eigen::Matrix<double, EkfPosYawBias::MEASUREMENT_SIZE, State::SIZE> EkfPosYawBias::jacobianH ()
+Eigen::Matrix<double, EKFPosYawBias::MEASUREMENT_SIZE, State::SIZE> EKFPosYawBias::jacobianH ()
 {
     Eigen::Matrix<double, MEASUREMENT_SIZE, State::SIZE>  J_H;
     J_H.setIdentity();
@@ -84,7 +107,7 @@ Eigen::Matrix<double, EkfPosYawBias::MEASUREMENT_SIZE, State::SIZE> EkfPosYawBia
 }
 
 /** calculates the process noise in world frame*/ 
-void EkfPosYawBias::processNoise(const Eigen::Matrix<double, State::SIZE, State::SIZE> &Q)
+void EKFPosYawBias::processNoise(const Eigen::Matrix<double, State::SIZE, State::SIZE> &Q)
 { 
     this->Q = Q; 
 
@@ -99,13 +122,19 @@ void EkfPosYawBias::processNoise(const Eigen::Matrix<double, State::SIZE, State:
 } 
 
 /** calculates the measurement noise */ 
-void EkfPosYawBias::measurementNoise(const Eigen::Matrix<double, MEASUREMENT_SIZE, MEASUREMENT_SIZE> &R)
+void EKFPosYawBias::measurementNoise(const Eigen::Matrix<double, MEASUREMENT_SIZE, MEASUREMENT_SIZE> &R)
 {
     this->R=R; 
 }
 
+/** calculates the measurement noise */ 
+void EKFPosYawBias::measurementNoisePos(const Eigen::Matrix<double, POS_SIZE, POS_SIZE> &R)
+{
+    this->R.corner<POS_SIZE,POS_SIZE>(Eigen::TopLeft)=R; 
+}
+
 /** configurarion hook */ 
-void EkfPosYawBias::init(const Eigen::Matrix<double, State::SIZE, State::SIZE> &P, const Eigen::Matrix<double,State::SIZE,1> &x)
+void EKFPosYawBias::init(const Eigen::Matrix<double, State::SIZE, State::SIZE> &P, const Eigen::Matrix<double,State::SIZE,1> &x)
 {
     Q.setZero(); 
     R.setZero(); 

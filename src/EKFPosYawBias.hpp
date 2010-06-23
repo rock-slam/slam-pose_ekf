@@ -5,7 +5,7 @@
 #include <Eigen/Geometry>
 #include "ExtendedKalmanFilter.hpp"
 
-namespace poseEstimation {
+namespace pose_estimator {
     class State
     {
     public:
@@ -27,10 +27,11 @@ namespace poseEstimation {
 	Eigen::Block<vector_t, 1, 1>& yaw() {return _yaw;}
     };
 
-    class EkfPosYawBias
+    class EKFPosYawBias
     {
     public:
 	static const int INPUT_SIZE = 3;
+	static const int POS_SIZE = 3;
 	static const int MEASUREMENT_SIZE = 4;
 
 	/** state estimate */
@@ -53,20 +54,26 @@ namespace poseEstimation {
 	/** ensure alignment for eigen vector types */
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-	EkfPosYawBias();
-	~EkfPosYawBias();
+	EKFPosYawBias();
+	~EKFPosYawBias();
 
 	/** update step taking velocity in world frame without the bias correction */
 	void update(const Eigen::Vector3d &v_w, double d_t );
 
 	/** correction step, taking absolute position data */
-	void correctionPos(const Eigen::Matrix<double, MEASUREMENT_SIZE, 1> &p );
+	void correctionPos(const Eigen::Matrix<double, POS_SIZE, 1> &p );
+
+	/** correction step, taking absolute position data */
+	void correction(const Eigen::Matrix<double, MEASUREMENT_SIZE, 1> &p );
 
 	/** set the process noise the frame should be world corrected by bias [velocity,  bias] */ 
 	void processNoise(const Eigen::Matrix<double, State::SIZE, State::SIZE> &Q); 
 	
 	/** set the measurement noise in world frame [position] */ 
 	void measurementNoise(const Eigen::Matrix<double, MEASUREMENT_SIZE, MEASUREMENT_SIZE> &R); 
+
+	/** set the measurement noise in world frame [position] */ 
+	void measurementNoisePos(const Eigen::Matrix<double, POS_SIZE, POS_SIZE> &R); 
 
 	/** set the inital values for state x and covariance P */
 	void init(const Eigen::Matrix<double, State::SIZE, State::SIZE> &P, const Eigen::Matrix<double,State::SIZE,1> &x); 
