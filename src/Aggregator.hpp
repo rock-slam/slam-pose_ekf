@@ -230,8 +230,8 @@ namespace aggregator {
 		    boost::get<2>(*it)->pop(late);
 		    if( !late ) {
 			current_ts = boost::get<0>(*it);
-			return true;
 		    }
+		    return true;
 		}
 		else if( (boost::get<0>(*it) + timeout) > latest_ts )
 		{
