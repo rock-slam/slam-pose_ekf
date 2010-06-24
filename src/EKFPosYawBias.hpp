@@ -42,7 +42,7 @@ namespace pose_estimator {
 	
     private:
 	/** Instance of the Extended Kalman filter*/
-	ExtendedKalmanFilter::EKF<State::SIZE,INPUT_SIZE,MEASUREMENT_SIZE>* filter;
+	ExtendedKalmanFilter::EKF<State::SIZE,INPUT_SIZE>* filter;
 	
 	/** process noise */
 	Eigen::Matrix<double, State::SIZE, State::SIZE> Q;

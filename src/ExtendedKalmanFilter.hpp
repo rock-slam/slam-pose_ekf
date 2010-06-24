@@ -7,7 +7,7 @@
 
 namespace ExtendedKalmanFilter {
  
-template <unsigned int SIZE, unsigned int INPUT_SIZE, unsigned int MEASUREMENT_SIZE> 
+template <unsigned int SIZE, unsigned int INPUT_SIZE> 
 class EKF
     {
       
@@ -51,6 +51,7 @@ class EKF
 	 J_H - jacobian observation model
 	 R - measurement noise covariance matrix
 	*/	
+	template <unsigned int MEASUREMENT_SIZE> 
 	void correction( Eigen::Matrix<double, MEASUREMENT_SIZE, 1> p,
 	  Eigen::Matrix<double, MEASUREMENT_SIZE, 1> h,
 	  Eigen::Matrix<double, MEASUREMENT_SIZE, SIZE> J_H,

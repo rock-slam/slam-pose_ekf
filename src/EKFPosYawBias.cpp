@@ -7,7 +7,7 @@ using namespace pose_estimator;
 /** CHECK */ 
 EKFPosYawBias::EKFPosYawBias() 
 {
-    filter =  new ExtendedKalmanFilter::EKF<State::SIZE,INPUT_SIZE,MEASUREMENT_SIZE>;
+    filter =  new ExtendedKalmanFilter::EKF<State::SIZE,INPUT_SIZE>;
 }
 
 EKFPosYawBias::~EKFPosYawBias()
@@ -39,24 +39,18 @@ void EKFPosYawBias::update( const Eigen::Vector3d &v_w, double d_t )
     P=filter->P; 
 }
 
-void EKFPosYawBias::correctionPos( const Eigen::Matrix<double, 3, 1> &p )
+void EKFPosYawBias::correctionPos( const Eigen::Matrix<double, POS_SIZE, 1> &p )
 {
     //jacobian of the observation function 
-    Eigen::Matrix<double, MEASUREMENT_SIZE, State::SIZE> J_H;
+    Eigen::Matrix<double, POS_SIZE, State::SIZE> J_H;
     J_H.setIdentity();
-    J_H(3,3) = 0;
-
-    // copy the 3 vector of the position input to a 4 vector for the measurement
-    Eigen::Matrix<double, MEASUREMENT_SIZE, 1> p_m;
-    p_m.start<3>() = p;
-    p_m(3) = 0;
 
     //observation function (the observation is linear so the h matrix can be defined as
-    Eigen::Matrix<double, MEASUREMENT_SIZE, 1> h
+    Eigen::Matrix<double, POS_SIZE, 1> h
 	= J_H*x.vector(); 
 
     //correct the state 
-    filter->correction( p_m,h, J_H, R); 
+    filter->correction<POS_SIZE>( p,h, J_H, R.corner<POS_SIZE,POS_SIZE>(Eigen::TopLeft) ); 
 
     //get the corrected values 
     x.vector()=filter->x; 
@@ -74,7 +68,7 @@ void EKFPosYawBias::correction( const Eigen::Matrix<double, MEASUREMENT_SIZE, 1>
 	= J_H*x.vector(); 
 
     //correct the state 
-    filter->correction( p,h, J_H, R); 
+    filter->correction<MEASUREMENT_SIZE>( p,h, J_H, R); 
 
     //get the corrected values 
     x.vector()=filter->x; 
