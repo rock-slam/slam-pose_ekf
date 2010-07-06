@@ -61,7 +61,7 @@ namespace pose_estimator {
 	void update(const Eigen::Vector3d &v_w, double d_t );
 
 	/** correction step, taking absolute position data */
-	void correctionPos(const Eigen::Matrix<double, POS_SIZE, 1> &p );
+	void correctionPos(const Eigen::Matrix<double, POS_SIZE, 1> &p, Eigen::Transform3d C_w2gw_without_bias );
 
 	/** correction step, taking absolute position data */
 	void correction(const Eigen::Matrix<double, MEASUREMENT_SIZE, 1> &p );
@@ -78,12 +78,18 @@ namespace pose_estimator {
 	/** set the inital values for state x and covariance P */
 	void init(const Eigen::Matrix<double, State::SIZE, State::SIZE> &P, const Eigen::Matrix<double,State::SIZE,1> &x); 
 	
+	
       private: 
 	/**jacobian state transition*/ 
 	Eigen::Matrix<double, State::SIZE, State::SIZE> jacobianF( const Eigen::Vector3d &v_w, double d_t );
 	
 	/**jacobian observation model*/ 
-	Eigen::Matrix<double, MEASUREMENT_SIZE, State::SIZE>  jacobianH();	
+	Eigen::Matrix<double, MEASUREMENT_SIZE, State::SIZE>  jacobianH();
+
+	/**jacobian of the GPS observation */ 
+	Eigen::Matrix<double, POS_SIZE, State::SIZE>  jacobianH_GPS(Eigen::Transform3d C_w2gw_without_bias);	
+	
+	
     };
 }
 

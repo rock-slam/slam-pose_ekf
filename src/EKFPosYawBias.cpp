@@ -39,18 +39,29 @@ void EKFPosYawBias::update( const Eigen::Vector3d &v_w, double d_t )
     P=filter->P; 
 }
 
-void EKFPosYawBias::correctionPos( const Eigen::Matrix<double, POS_SIZE, 1> &p )
+void EKFPosYawBias::correctionPos( const Eigen::Matrix<double, POS_SIZE, 1> &p, Eigen::Transform3d C_w2gw_without_bias )
 {
-    //jacobian of the observation function 
     Eigen::Matrix<double, POS_SIZE, State::SIZE> J_H;
     J_H.setIdentity();
+    
+    Eigen::Matrix<double, POS_SIZE, 1> h;
+    h = J_H *  x.vector();
 
-    //observation function (the observation is linear so the h matrix can be defined as
-    Eigen::Matrix<double, POS_SIZE, 1> h
-	= J_H*x.vector(); 
-
+ /*   //jacobian of the observation function 
+    Eigen::Matrix<double, POS_SIZE, State::SIZE> J_H 
+	= jacobianH_GPS ( C_w2gw_without_bias );
+	
+    Eigen::Transform3d R_w2wb;
+    R_w2wb=Eigen::AngleAxisd( x.yaw()(0,0), Eigen::Vector3d::UnitZ() ); 
+    
+    Eigen::Transform3d R_w2gw( R_w2wb * C_w2gw_without_bias * R_w2wb.inverse() );
+	
+    //observation function
+    Eigen::Matrix<double, POS_SIZE, 1> h;
+    h = R_w2gw * ( Eigen::Vector3d ( x.vector().start<3>() ) ); 
+*/	
     //correct the state 
-    filter->correction<POS_SIZE>( p,h, J_H, R.corner<POS_SIZE,POS_SIZE>(Eigen::TopLeft) ); 
+    filter->correction<POS_SIZE>( p, h, J_H, R.corner<POS_SIZE,POS_SIZE>(Eigen::TopLeft) ); 
 
     //get the corrected values 
     x.vector()=filter->x; 
@@ -96,6 +107,35 @@ Eigen::Matrix<double, EKFPosYawBias::MEASUREMENT_SIZE, State::SIZE> EKFPosYawBia
 {
     Eigen::Matrix<double, MEASUREMENT_SIZE, State::SIZE>  J_H;
     J_H.setIdentity();
+
+    return J_H; 
+}
+
+/**jacobian of the GPS observation*/ 
+Eigen::Matrix<double, EKFPosYawBias::POS_SIZE, State::SIZE> EKFPosYawBias::jacobianH_GPS (Eigen::Transform3d C_w2gw_without_bias)
+{
+     //derivate of the rotation do to yaw bias 
+    Eigen::Matrix<double, 3,3> dR_z;
+    dR_z << -sin(x.yaw()(0,0)), -cos(x.yaw()(0,0)), 0,cos(x.yaw()(0,0)),-sin(x.yaw()(0,0)),0,0,0,0; 
+
+    //derivate of the inverse rotation do to yaw bias 
+    Eigen::Matrix<double, 3,3> dR_z_inv;
+    dR_z_inv << -sin(-x.yaw()(0,0)), -cos(-x.yaw()(0,0)), 0,cos(-x.yaw()(0,0)),-sin(-x.yaw()(0,0)),0,0,0,0; 
+    
+    Eigen::Transform3d R_w2wb;
+    R_w2wb = Eigen::AngleAxisd( x.yaw()(0,0), Eigen::Vector3d::UnitZ() ); 
+    
+    Eigen::Transform3d R_w2gw( R_w2wb * C_w2gw_without_bias * R_w2wb.inverse() );
+
+    Eigen::Matrix<double, POS_SIZE, State::SIZE>  J_H;
+    J_H.setZero();
+    
+    J_H.block<3,1>(0,0) = R_w2gw * Eigen::Vector3d::UnitX();
+    J_H.block<3,1>(0,1) = R_w2gw * Eigen::Vector3d::UnitY();
+    J_H.block<3,1>(0,2) = R_w2gw * Eigen::Vector3d::UnitZ();   
+    J_H.block<3,1>(0,3) =  
+	Eigen::Transform3d( dR_z * C_w2gw_without_bias * R_w2wb.inverse() ) * Eigen::Vector3d( x.vector().start<3>() )   
+	+ Eigen::Transform3d( R_w2wb * C_w2gw_without_bias * dR_z_inv ) * Eigen::Vector3d( x.vector().start<3>() );
 
     return J_H; 
 }
