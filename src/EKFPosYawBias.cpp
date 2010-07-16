@@ -1,55 +1,70 @@
 #include "EKFPosYawBias.hpp"
 #include <Eigen/LU> 
 #include <math.h>
+#include <fault_detection/FaultDetection.hpp>
 
 using namespace pose_estimator;
+
 
 /** CHECK */ 
 EKFPosYawBias::EKFPosYawBias() 
 {
-    filter =  new ExtendedKalmanFilter::EKF<State::SIZE,INPUT_SIZE>;
+    filter_gps =  new ExtendedKalmanFilter::EKF<State::SIZE,INPUT_SIZE,MEASUREMENT_SIZE_GPS>;
+    filter_scan_match =  new ExtendedKalmanFilter::EKF<State::SIZE,INPUT_SIZE,MEASUREMENT_SIZE_SCAN_MATCH>;
+    chi_square = new fault_detection::ChiSquared();
 }
 
 EKFPosYawBias::~EKFPosYawBias()
 {
-    delete filter; 
+    delete filter_gps; 
+    delete filter_scan_match; 
+    delete chi_square;
 }
 
 /** update the filter */ 
-void EKFPosYawBias::update( const Eigen::Vector3d &v_w, double d_t )
+void EKFPosYawBias::predict( const Eigen::Vector3d &translation_world )
 {	
+  
     //calculates the rotation from world to world frame corrected by the bias 
     Eigen::Quaterniond R_w2wb;
-    R_w2wb=Eigen::AngleAxisd(x.yaw()(0,0), Eigen::Vector3d::UnitZ()); 
+    R_w2wb = Eigen::AngleAxisd( x.yaw()(0,0), Eigen::Vector3d::UnitZ() ); 
 
     //sets the transition matrix 
     Eigen::Matrix<double, State::SIZE, 1> f;
-    f.start<3>()=x.xi()+R_w2wb*v_w*d_t;
-    f.end<1>()=x.yaw();
+    f.start<3>() = x.xi() + R_w2wb * translation_world;
+    f.end<1>() = x.yaw();
 
     //sets the Jacobian of the state transition matrix 
     Eigen::Matrix<double, State::SIZE, State::SIZE> J_F
-	= jacobianF(v_w, d_t);
+	= jacobianF(translation_world );
 
+	
+    /** EKF **/ 
+    //sets the current state to the filter 
+    filter_gps->x = x.vector(); 
+    filter_gps->P = P;
+    
     //updates the Kalman Filter 
-    filter->update(f,J_F, Q ); 
+    filter_gps->prediction( f, J_F, Q ); 
 
     //get the updated values 
-    x.vector()=filter->x; 
-    P=filter->P; 
+    x.vector()=filter_gps->x; 
+    P=filter_gps->P; 
+
 }
 
-void EKFPosYawBias::correctionPos( const Eigen::Matrix<double, POS_SIZE, 1> &p, Eigen::Transform3d C_w2gw_without_bias )
+void EKFPosYawBias::correctionGps(const Eigen::Matrix<double, MEASUREMENT_SIZE_GPS, 1> &p, Eigen::Transform3d C_w2gw_without_bias, Eigen::Matrix<double, MEASUREMENT_SIZE_GPS, MEASUREMENT_SIZE_GPS> R_GPS  )
 {
-    Eigen::Matrix<double, POS_SIZE, State::SIZE> J_H;
+
+    Eigen::Matrix<double, MEASUREMENT_SIZE_GPS, State::SIZE> J_H;
     J_H.setIdentity();
     
-    Eigen::Matrix<double, POS_SIZE, 1> h;
-    h = J_H *  x.vector();
+    Eigen::Matrix<double, MEASUREMENT_SIZE_GPS, 1> h;
+    h = J_H * x.vector();
 
- /*   //jacobian of the observation function 
-    Eigen::Matrix<double, POS_SIZE, State::SIZE> J_H 
-	= jacobianH_GPS ( C_w2gw_without_bias );
+/*    //jacobian of the observation function 
+    Eigen::Matrix<double, MEASUREMENT_SIZE_GPS, State::SIZE> J_H 
+	= jacobianGpsObservation ( C_w2gw_without_bias );
 	
     Eigen::Transform3d R_w2wb;
     R_w2wb=Eigen::AngleAxisd( x.yaw()(0,0), Eigen::Vector3d::UnitZ() ); 
@@ -57,77 +72,132 @@ void EKFPosYawBias::correctionPos( const Eigen::Matrix<double, POS_SIZE, 1> &p, 
     Eigen::Transform3d R_w2gw( R_w2wb * C_w2gw_without_bias * R_w2wb.inverse() );
 	
     //observation function
-    Eigen::Matrix<double, POS_SIZE, 1> h;
+    Eigen::Matrix<double, MEASUREMENT_SIZE_GPS, 1> h;
     h = R_w2gw * ( Eigen::Vector3d ( x.vector().start<3>() ) ); 
-*/	
-    //correct the state 
-    filter->correction<POS_SIZE>( p, h, J_H, R.corner<POS_SIZE,POS_SIZE>(Eigen::TopLeft) ); 
+*/
+    /** EKF  */
+    //sets the current state to the filter 
+    filter_gps->x = x.vector(); 
+    filter_gps->P = P; 
+    
+   //innovation steps
+    filter_gps->innovation( p, h, J_H, R_GPS ); 
 
-    //get the corrected values 
-    x.vector()=filter->x; 
-    P=filter->P; 
+    //test to reject data 
+    reject_GPS_observation=chi_square->rejectData2D( filter_gps->y.start<2>(), filter_gps->S.block<2,2>(0,0), chi_square->THRESHOLD_2D_99 );
+    //reject_GPS_observation=chi_square->rejectData3D( filter_gps->y.start<3>(), filter_gps->S.block<3,3>(0,0), chi_square->THRESHOLD_3D_95 );
+  
+    if(!reject_GPS_observation)
+    {
+    
+	//Kalman Gain
+	filter_gps->gain( J_H ); 
+	
+	//update teh state 
+	filter_gps->update(J_H ); 
+
+	//get the corrected values 
+	x.vector() = filter_gps->x; 
+	P = filter_gps->P; 
+
+    }
+    else
+    { 
+     
+	std::cout<< " Rejected GPS data " << std::endl; 
+    
+    }
+
 }
 
-void EKFPosYawBias::correction( const Eigen::Matrix<double, MEASUREMENT_SIZE, 1> &p )
+void EKFPosYawBias::correctionScanMatch(const Eigen::Matrix<double, MEASUREMENT_SIZE_SCAN_MATCH, 1> &p, Eigen::Matrix<double, MEASUREMENT_SIZE_SCAN_MATCH, MEASUREMENT_SIZE_SCAN_MATCH> R_scan_match  )
 {
     //jacobian of the observation function 
-    Eigen::Matrix<double, MEASUREMENT_SIZE, State::SIZE> J_H 
-	= jacobianH (); 
+    Eigen::Matrix<double, MEASUREMENT_SIZE_SCAN_MATCH, State::SIZE> J_H 
+	= jacobianScanMatchObservation (); 
 
     //observation function (the observation is linear so the h matrix can be defined as
-    Eigen::Matrix<double, MEASUREMENT_SIZE, 1> h
+    Eigen::Matrix<double, MEASUREMENT_SIZE_SCAN_MATCH, 1> h
 	= J_H*x.vector(); 
 
-    //correct the state 
-    filter->correction<MEASUREMENT_SIZE>( p,h, J_H, R); 
 
-    //get the corrected values 
-    x.vector()=filter->x; 
-    P=filter->P; 
+    /** EKF  */
+    //sets the current state to the filter 
+    filter_scan_match->x = x.vector(); 
+    filter_scan_match->P = P; 
+    
+   //innovation steps
+    filter_scan_match->innovation( p, h, J_H, R_scan_match ); 
+
+    //test to reject data 
+    reject_scan_match_observation=chi_square->rejectData2D( filter_scan_match->y.start<2>(), filter_scan_match->S.block<2,2>(0,0), chi_square->THRESHOLD_2D_99 );
+    //reject_scan_match_observation=chi_square->rejectData3D( filter_scan_match->y.start<3>(), filter_scan_match->S.block<3,3>(0,0), chi_square->THRESHOLD_3D_95 );
+
+    if(!reject_scan_match_observation)
+    {
+	
+	//Kalman Gain
+	filter_scan_match->gain( J_H ); 
+	
+	//update teh state 
+	filter_scan_match->update( J_H ); 
+
+	//get the corrected values 
+	x.vector() = filter_scan_match->x; 
+	P = filter_scan_match->P; 
+    
+    }
+    else
+    { 
+     
+	std::cout<< " Rejected SCAN Match data " << std::endl; 
+    
+    }
+
 }
 
 /** Calculates the Jacobian of the transition matrix */ 
-Eigen::Matrix<double, State::SIZE, State::SIZE> EKFPosYawBias::jacobianF( const Eigen::Vector3d &v_w, double d_t )
+Eigen::Matrix<double, State::SIZE, State::SIZE> EKFPosYawBias::jacobianF( const Eigen::Vector3d &translation_world )
 {
     //derivate of the rotation do to yaw bias 
     Eigen::Matrix<double, 3,3> dR_z;
-    dR_z<<-sin(x.yaw()(0,0)), -cos(x.yaw()(0,0)), 0,cos(x.yaw()(0,0)),-sin(x.yaw()(0,0)),0,0,0,0; 
+    dR_z << -sin( x.yaw()(0,0) ), -cos( x.yaw()(0,0) ), 0, cos( x.yaw()(0,0) ), -sin( x.yaw()(0,0) ),0 ,0 ,0 ,0; 
 
     //jacobian 
     Eigen::Matrix<double, State::SIZE, State::SIZE> J_F; 
     J_F.setIdentity(); 
     J_F.block<3,1>(0,3)
-	= dR_z*v_w*d_t;
+	= dR_z * translation_world;
 
     return J_F;
 }
 
 /**jacobian observation model*/ 
-Eigen::Matrix<double, EKFPosYawBias::MEASUREMENT_SIZE, State::SIZE> EKFPosYawBias::jacobianH ()
+Eigen::Matrix<double, EKFPosYawBias::MEASUREMENT_SIZE_SCAN_MATCH, State::SIZE> EKFPosYawBias::jacobianScanMatchObservation ()
 {
-    Eigen::Matrix<double, MEASUREMENT_SIZE, State::SIZE>  J_H;
+    Eigen::Matrix<double, MEASUREMENT_SIZE_SCAN_MATCH, State::SIZE>  J_H;
     J_H.setIdentity();
 
     return J_H; 
 }
 
 /**jacobian of the GPS observation*/ 
-Eigen::Matrix<double, EKFPosYawBias::POS_SIZE, State::SIZE> EKFPosYawBias::jacobianH_GPS (Eigen::Transform3d C_w2gw_without_bias)
+Eigen::Matrix<double, EKFPosYawBias::MEASUREMENT_SIZE_GPS, State::SIZE> EKFPosYawBias::jacobianGpsObservation (Eigen::Transform3d C_w2gw_without_bias)
 {
      //derivate of the rotation do to yaw bias 
     Eigen::Matrix<double, 3,3> dR_z;
-    dR_z << -sin(x.yaw()(0,0)), -cos(x.yaw()(0,0)), 0,cos(x.yaw()(0,0)),-sin(x.yaw()(0,0)),0,0,0,0; 
+    dR_z << -sin( x.yaw()(0,0) ), -cos( x.yaw()(0,0) ), 0,cos( x.yaw()(0,0) ),-sin( x.yaw()(0,0) ), 0, 0, 0, 0; 
 
     //derivate of the inverse rotation do to yaw bias 
     Eigen::Matrix<double, 3,3> dR_z_inv;
-    dR_z_inv << -sin(-x.yaw()(0,0)), -cos(-x.yaw()(0,0)), 0,cos(-x.yaw()(0,0)),-sin(-x.yaw()(0,0)),0,0,0,0; 
+    dR_z_inv << -sin( -x.yaw()(0,0) ), -cos( -x.yaw()(0,0) ), 0, cos( -x.yaw()(0,0) ), -sin( -x.yaw()(0,0) ), 0, 0, 0, 0; 
     
     Eigen::Transform3d R_w2wb;
     R_w2wb = Eigen::AngleAxisd( x.yaw()(0,0), Eigen::Vector3d::UnitZ() ); 
     
     Eigen::Transform3d R_w2gw( R_w2wb * C_w2gw_without_bias * R_w2wb.inverse() );
 
-    Eigen::Matrix<double, POS_SIZE, State::SIZE>  J_H;
+    Eigen::Matrix<double, MEASUREMENT_SIZE_GPS, State::SIZE>  J_H;
     J_H.setZero();
     
     J_H.block<3,1>(0,0) = R_w2gw * Eigen::Vector3d::UnitX();
@@ -155,27 +225,13 @@ void EKFPosYawBias::processNoise(const Eigen::Matrix<double, State::SIZE, State:
     this->Q.block<3,3>(0,0) = R_w2wb_*this->Q.block<3,3>(0,0) *R_w2wb_.transpose();
 } 
 
-/** calculates the measurement noise */ 
-void EKFPosYawBias::measurementNoise(const Eigen::Matrix<double, MEASUREMENT_SIZE, MEASUREMENT_SIZE> &R)
-{
-    this->R=R; 
-}
-
-/** calculates the measurement noise */ 
-void EKFPosYawBias::measurementNoisePos(const Eigen::Matrix<double, POS_SIZE, POS_SIZE> &R)
-{
-    this->R.corner<POS_SIZE,POS_SIZE>(Eigen::TopLeft)=R; 
-}
 
 /** configurarion hook */ 
 void EKFPosYawBias::init(const Eigen::Matrix<double, State::SIZE, State::SIZE> &P, const Eigen::Matrix<double,State::SIZE,1> &x)
 {
     Q.setZero(); 
-    R.setZero(); 
+    this->P = P;
+    this->x.vector() = x; 
 
-    this->P=P;
-    this->x.vector()=x; 
-    filter->x=x; 
-    filter->P=P;
 }
 

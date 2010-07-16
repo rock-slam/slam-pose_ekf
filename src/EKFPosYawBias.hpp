@@ -4,6 +4,8 @@
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 #include "ExtendedKalmanFilter.hpp"
+#include <fault_detection/FaultDetection.hpp>
+
 
 namespace pose_estimator {
     class State
@@ -30,9 +32,12 @@ namespace pose_estimator {
     class EKFPosYawBias
     {
     public:
+      	/** ensure alignment for eigen vector types */
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+	
 	static const int INPUT_SIZE = 3;
-	static const int POS_SIZE = 3;
-	static const int MEASUREMENT_SIZE = 4;
+	static const int MEASUREMENT_SIZE_SCAN_MATCH = 4;
+	static const int MEASUREMENT_SIZE_GPS = 3;
 
 	/** state estimate */
 	State x;
@@ -40,54 +45,56 @@ namespace pose_estimator {
 	/** covariance matrix */
 	Eigen::Matrix<double, State::SIZE, State::SIZE> P;
 	
+	bool reject_GPS_observation;
+	bool reject_scan_match_observation; 
+	
     private:
+	
+      	/**fault detection libary */ 
+	fault_detection::ChiSquared* chi_square; 
+	
 	/** Instance of the Extended Kalman filter*/
-	ExtendedKalmanFilter::EKF<State::SIZE,INPUT_SIZE>* filter;
+	ExtendedKalmanFilter::EKF<State::SIZE,INPUT_SIZE,MEASUREMENT_SIZE_SCAN_MATCH>* filter_scan_match;
+	
+	/** Instance of the Extended Kalman filter*/
+	ExtendedKalmanFilter::EKF<State::SIZE,INPUT_SIZE,MEASUREMENT_SIZE_GPS>* filter_gps;
 	
 	/** process noise */
 	Eigen::Matrix<double, State::SIZE, State::SIZE> Q;
 	
-	/** measurement noise */ 
-	Eigen::Matrix<double, MEASUREMENT_SIZE, MEASUREMENT_SIZE> R; 
 	
     public:
-	/** ensure alignment for eigen vector types */
-	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
 	EKFPosYawBias();
 	~EKFPosYawBias();
-
+  
+	
 	/** update step taking velocity in world frame without the bias correction */
-	void update(const Eigen::Vector3d &v_w, double d_t );
+	void predict(const Eigen::Vector3d &translation_world );
 
 	/** correction step, taking absolute position data */
-	void correctionPos(const Eigen::Matrix<double, POS_SIZE, 1> &p, Eigen::Transform3d C_w2gw_without_bias );
+	void correctionGps(const Eigen::Matrix<double, MEASUREMENT_SIZE_GPS, 1> &p, Eigen::Transform3d C_w2gw_without_bias, Eigen::Matrix<double, MEASUREMENT_SIZE_GPS, MEASUREMENT_SIZE_GPS> R_GPS  );
 
 	/** correction step, taking absolute position data */
-	void correction(const Eigen::Matrix<double, MEASUREMENT_SIZE, 1> &p );
+	void correctionScanMatch(const Eigen::Matrix<double, MEASUREMENT_SIZE_SCAN_MATCH, 1> &p, Eigen::Matrix<double, MEASUREMENT_SIZE_SCAN_MATCH, MEASUREMENT_SIZE_SCAN_MATCH> R_scan_match  );
 
 	/** set the process noise the frame should be world corrected by bias [velocity,  bias] */ 
 	void processNoise(const Eigen::Matrix<double, State::SIZE, State::SIZE> &Q); 
 	
-	/** set the measurement noise in world frame [position] */ 
-	void measurementNoise(const Eigen::Matrix<double, MEASUREMENT_SIZE, MEASUREMENT_SIZE> &R); 
-
-	/** set the measurement noise in world frame [position] */ 
-	void measurementNoisePos(const Eigen::Matrix<double, POS_SIZE, POS_SIZE> &R); 
-
 	/** set the inital values for state x and covariance P */
 	void init(const Eigen::Matrix<double, State::SIZE, State::SIZE> &P, const Eigen::Matrix<double,State::SIZE,1> &x); 
 	
 	
       private: 
+	
 	/**jacobian state transition*/ 
-	Eigen::Matrix<double, State::SIZE, State::SIZE> jacobianF( const Eigen::Vector3d &v_w, double d_t );
+	Eigen::Matrix<double, State::SIZE, State::SIZE> jacobianF( const Eigen::Vector3d &translation_world );
 	
 	/**jacobian observation model*/ 
-	Eigen::Matrix<double, MEASUREMENT_SIZE, State::SIZE>  jacobianH();
+	Eigen::Matrix<double, MEASUREMENT_SIZE_SCAN_MATCH, State::SIZE>  jacobianScanMatchObservation();
 
 	/**jacobian of the GPS observation */ 
-	Eigen::Matrix<double, POS_SIZE, State::SIZE>  jacobianH_GPS(Eigen::Transform3d C_w2gw_without_bias);	
+	Eigen::Matrix<double, MEASUREMENT_SIZE_GPS, State::SIZE>  jacobianGpsObservation(Eigen::Transform3d C_w2gw_without_bias);	
 	
 	
     };

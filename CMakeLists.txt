@@ -15,6 +15,10 @@ find_package(Boost REQUIRED)
 include_directories(${Boost_INCLUDE_DIRS})
 link_directories(${Boost_LIBRARY_DIRS})
 
+pkg_check_modules(FAULT_DETECTION REQUIRED "fault_detection")
+include_directories(${FAULT_DETECTION_INCLUDE_DIRS})
+link_directories(${FAULT_DETECTION_LIBRARY_DIRS})
+
 pkg_check_modules(DFKI REQUIRED "base-types")
 include_directories(${DFKI_INCLUDE_DIRS})
 link_directories(${DFKI_LIBRARY_DIRS})
@@ -25,16 +29,17 @@ set(POSE_HDRS
     src/Aggregator.hpp
     src/KalmanFilter.hpp
     src/ExtendedKalmanFilter.hpp
-    src/GlobalSlipDetection.hpp
     src/EKFPosYawBias.hpp
     )
 
 set(POSE_SRCS
     src/EKFPosYawBias.cpp
-    src/GlobalSlipDetection.cpp
     )
 
 add_library(pose_estimator SHARED ${POSE_SRCS})
+
+target_link_libraries(pose_estimator ${FAULT_DETECTION_LIBRARIES})
+
 
 install(TARGETS pose_estimator
     RUNTIME DESTINATION bin
