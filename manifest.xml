@@ -10,4 +10,5 @@
     </copyright>
 
     <depend package="base" />
+    <depend package="slam/fault_detection" />
 </package>
