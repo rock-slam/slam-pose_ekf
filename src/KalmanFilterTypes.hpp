@@ -23,6 +23,7 @@ namespace pose_estimator
 	/** the icp observation covariance */ 
 	wrappers::Matrix4 R_icp;
 	
+	
     };
  
 }
