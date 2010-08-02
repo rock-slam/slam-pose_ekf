@@ -30,6 +30,7 @@ set(POSE_HDRS
     src/KalmanFilter.hpp
     src/ExtendedKalmanFilter.hpp
     src/EKFPosYawBias.hpp
+    src/KalmanFilterTypes.hpp
     )
 
 set(POSE_SRCS
