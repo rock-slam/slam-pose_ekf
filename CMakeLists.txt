@@ -26,7 +26,6 @@ link_directories(${DFKI_LIBRARY_DIRS})
 include_directories(./src)
 
 set(POSE_HDRS
-    src/Aggregator.hpp
     src/KalmanFilter.hpp
     src/ExtendedKalmanFilter.hpp
     src/EKFPosYawBias.hpp
