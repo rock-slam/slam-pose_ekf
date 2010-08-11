@@ -35,6 +35,11 @@ namespace pose_estimator {
       	/** ensure alignment for eigen vector types */
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	
+
+	static const int THRESHOLD_2D_99 = 99;
+	static const int THRESHOLD_2D_95 = 95;
+	static const int THRESHOLD_2D_0 = 0;
+	
 	static const int INPUT_SIZE = 3;
 	static const int MEASUREMENT_SIZE_SCAN_MATCH = 4;
 	static const int MEASUREMENT_SIZE_GPS = 3;
@@ -49,6 +54,9 @@ namespace pose_estimator {
 	bool reject_scan_match_observation; 
 	
     private:
+	
+	int reject_GPS_threshold; 
+	int reject_icp_threshold; 
 	
       	/**fault detection libary */ 
 	fault_detection::ChiSquared* chi_square; 
@@ -68,6 +76,11 @@ namespace pose_estimator {
 	EKFPosYawBias();
 	~EKFPosYawBias();
   
+	/** sets the rejection threshold for the GPS sample */ 
+	void setGpsRejectThreshold(int threshold);
+	
+	/** sets the rejection threshold for the GPS sample */ 
+	void setIcpRejectThreshold(int threshold);
 	
 	/** update step taking velocity in world frame without the bias correction */
 	void predict(const Eigen::Vector3d &translation_world );

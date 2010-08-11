@@ -21,6 +21,16 @@ EKFPosYawBias::~EKFPosYawBias()
     delete chi_square;
 }
 
+void EKFPosYawBias::setGpsRejectThreshold(int threshold)
+{
+    reject_GPS_threshold = threshold; 
+}
+
+void EKFPosYawBias::setIcpRejectThreshold(int threshold)
+{
+    reject_icp_threshold = threshold; 
+}
+
 /** update the filter */ 
 void EKFPosYawBias::predict( const Eigen::Vector3d &translation_world )
 {	
@@ -83,8 +93,24 @@ void EKFPosYawBias::correctionGps(const Eigen::Matrix<double, MEASUREMENT_SIZE_G
    //innovation steps
     filter_gps->innovation( p, h, J_H, R_GPS ); 
 
+    float threshold; 
+    bool reject = true; 
+    switch ( reject_GPS_threshold ) 
+    {
+	case THRESHOLD_2D_99: 
+	    threshold = chi_square->THRESHOLD_2D_99;
+	    break; 
+	case THRESHOLD_2D_95: 
+	    threshold = chi_square->THRESHOLD_2D_95;
+	    break;
+	default: 
+	    reject = false; 
+	    break;
+    }
+
     //test to reject data 
-    reject_GPS_observation=chi_square->rejectData2D( filter_gps->y.start<2>(), filter_gps->S.block<2,2>(0,0), chi_square->THRESHOLD_2D_99 );
+    if ( reject ) 
+	reject_GPS_observation=chi_square->rejectData2D( filter_gps->y.start<2>(), filter_gps->S.block<2,2>(0,0), threshold );
     //reject_GPS_observation=chi_square->rejectData3D( filter_gps->y.start<3>(), filter_gps->S.block<3,3>(0,0), chi_square->THRESHOLD_3D_95 );
   
     if(!reject_GPS_observation)
@@ -129,8 +155,24 @@ void EKFPosYawBias::correctionScanMatch(const Eigen::Matrix<double, MEASUREMENT_
    //innovation steps
     filter_scan_match->innovation( p, h, J_H, R_scan_match ); 
 
+    float threshold; 
+    bool reject = true; 
+    switch ( reject_icp_threshold ) 
+    {
+	case THRESHOLD_2D_99: 
+	    threshold = chi_square->THRESHOLD_2D_99;
+	    break; 
+	case THRESHOLD_2D_95: 
+	    threshold = chi_square->THRESHOLD_2D_95;
+	    break;
+	default: 
+	    reject = false; 
+	    break;
+    }
+
     //test to reject data 
-    reject_scan_match_observation=chi_square->rejectData2D( filter_scan_match->y.start<2>(), filter_scan_match->S.block<2,2>(0,0), chi_square->THRESHOLD_2D_99 );
+    if ( reject ) 
+	reject_scan_match_observation=chi_square->rejectData2D( filter_scan_match->y.start<2>(), filter_scan_match->S.block<2,2>(0,0), threshold );
     //reject_scan_match_observation=chi_square->rejectData3D( filter_scan_match->y.start<3>(), filter_scan_match->S.block<3,3>(0,0), chi_square->THRESHOLD_3D_95 );
 
     if(!reject_scan_match_observation)
@@ -229,6 +271,8 @@ void EKFPosYawBias::processNoise(const Eigen::Matrix<double, State::SIZE, State:
 /** configurarion hook */ 
 void EKFPosYawBias::init(const Eigen::Matrix<double, State::SIZE, State::SIZE> &P, const Eigen::Matrix<double,State::SIZE,1> &x)
 {
+    reject_icp_threshold = THRESHOLD_2D_0; 
+    reject_GPS_threshold = THRESHOLD_2D_0; 
     Q.setZero(); 
     this->P = P;
     this->x.vector() = x; 
