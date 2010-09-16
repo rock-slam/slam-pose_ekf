@@ -10,9 +10,12 @@ namespace pose_estimator
     struct KalmanFilterState
     {
 
+      
 	/** the time that the slip started */
 	base::Time time;       
-
+	/** the time that the slip started */
+	base::Time icp_processed_time;  
+	
 	/** the filter state */ 
 	wrappers::Vector4 x; 
 	/** the filter covariance matrix */ 
