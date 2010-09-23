@@ -35,7 +35,7 @@ set(POSE_HDRS
 
 set(POSE_SRCS
     src/EKFPosYawBias.cpp
-    src/EFKPosVelYawBias.cpp
+    src/EKFPosVelYawBias.cpp
     )
 
 add_library(pose_estimator SHARED ${POSE_SRCS})
