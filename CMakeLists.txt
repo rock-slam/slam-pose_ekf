@@ -28,14 +28,14 @@ include_directories(./src)
 set(POSE_HDRS
     src/KalmanFilter.hpp
     src/ExtendedKalmanFilter.hpp
-    src/EKFPosYawBias.hpp
+    src/EKFPosYawBiasT.hpp
     src/KalmanFilterTypes.hpp
-#    src/EKFPosVelYawBias.cpp
+    #src/EKFPosVelYawBias.cpp
     )
 
 set(POSE_SRCS
-    src/EKFPosYawBias.cpp
-#    src/EKFPosVelYawBias.cpp
+    src/EKFPosYawBiasT.cpp
+    #src/EKFPosVelYawBias.cpp
     )
 
 add_library(pose_estimator SHARED ${POSE_SRCS})
