@@ -7,7 +7,7 @@
 
 namespace ExtendedKalmanFilter {
  
-template <unsigned int SIZE, unsigned int INPUT_SIZE,unsigned int MEASUREMENT_SIZE> 
+template <unsigned int SIZE> 
 class EKF
     {
       
@@ -21,15 +21,6 @@ class EKF
 	/** covariance matrix */
 	Eigen::Matrix<double, SIZE, SIZE> P;
 	
-	/** innovation */ 
-	Eigen::Matrix<double, MEASUREMENT_SIZE, 1> y;
-	
-	/** innovation covariance matrix */ 
-	Eigen::Matrix<double, MEASUREMENT_SIZE, MEASUREMENT_SIZE> S; 
-	
-	/** kalman gain */
-	Eigen::Matrix<double, SIZE, MEASUREMENT_SIZE> K;
-      
       public:
 	/** prediction step 
 	    f - state transition
@@ -51,27 +42,41 @@ class EKF
  	/** innovation step, 
 	 p - observation 
 	 h - observation model function
+	*/	
+	template <unsigned int MEASUREMENT_SIZE>
+	Eigen::Matrix<double, MEASUREMENT_SIZE, 1>  innovation( Eigen::Matrix<double, MEASUREMENT_SIZE, 1> p,
+	  Eigen::Matrix<double, MEASUREMENT_SIZE, 1> h)	  
+	{
+	    
+	    return (p - h);
+	    
+	}
+	
+ 	/** innovation covariance step, 
+	 p - observation 
+	 h - observation model function
 	 J_H - jacobian observation model
 	 R - measurement noise covariance matrix
 	*/	
-	void innovation( Eigen::Matrix<double, MEASUREMENT_SIZE, 1> p,
-	  Eigen::Matrix<double, MEASUREMENT_SIZE, 1> h,
+	template <unsigned int MEASUREMENT_SIZE>
+	Eigen::Matrix<double, MEASUREMENT_SIZE, MEASUREMENT_SIZE>  innovationCovariance(
 	  Eigen::Matrix<double, MEASUREMENT_SIZE, SIZE> J_H,
 	  Eigen::Matrix<double, MEASUREMENT_SIZE, MEASUREMENT_SIZE> R)	  
 	{
-	    
-	    y = p - h;
-	    
-	    S = J_H*P*J_H.transpose()+R;
-
-    
+	  
+	    return (J_H*P*J_H.transpose()+R);
+  
 	}
-	
 	
 	/** update step, 
 	 J_H - jacobian observation model
+	 y - innovation
+	 K - gain 
 	*/	
-	void update( Eigen::Matrix<double, MEASUREMENT_SIZE, SIZE> J_H)	  
+	template <unsigned int MEASUREMENT_SIZE>
+	void update( Eigen::Matrix<double, MEASUREMENT_SIZE, SIZE> J_H,
+		     Eigen::Matrix<double, SIZE, MEASUREMENT_SIZE> K,
+		     Eigen::Matrix<double, MEASUREMENT_SIZE, 1> y)	  
 	{
 
 	    x = x + K*y;
@@ -82,12 +87,15 @@ class EKF
 
 	/** calculates the gain 
 	 J_H - jacobian observation model
-	*/	
-	void gain( Eigen::Matrix<double, MEASUREMENT_SIZE, SIZE> J_H)	  
+	*/
+	template <unsigned int MEASUREMENT_SIZE>
+	Eigen::Matrix<double, SIZE, MEASUREMENT_SIZE> gain( 
+	  Eigen::Matrix<double, MEASUREMENT_SIZE, SIZE> J_H,
+	  Eigen::Matrix<double, MEASUREMENT_SIZE, MEASUREMENT_SIZE> S )	  
 	{
 
 	    // correct the estimate and covariance according to measurement
-	    K = P*J_H.transpose()*S.inverse();
+	    return (P*J_H.transpose()*S.inverse());
 	    
 	}
 
@@ -97,18 +105,28 @@ class EKF
 	 J_H - jacobian observation model
 	 R - measurement noise covariance matrix
 	*/	
+	template <unsigned int MEASUREMENT_SIZE>
 	void correction(  Eigen::Matrix<double, MEASUREMENT_SIZE, 1> p,
 	  Eigen::Matrix<double, MEASUREMENT_SIZE, 1> h,
 	  Eigen::Matrix<double, MEASUREMENT_SIZE, SIZE> J_H,
 	  Eigen::Matrix<double, MEASUREMENT_SIZE, MEASUREMENT_SIZE> R)	    
 	{
 	  
- 	    y = p - h;
+	    /** innovation */ 
+	    Eigen::Matrix<double, MEASUREMENT_SIZE, 1> y;
+	
+	    /** innovation covariance matrix */ 
+	    Eigen::Matrix<double, MEASUREMENT_SIZE, MEASUREMENT_SIZE> S; 
+	
+	    /** kalman gain */
+	    Eigen::Matrix<double, SIZE, MEASUREMENT_SIZE> K;
+ 	    
+	    y = p - h;
 	    
 	    S = J_H*P*J_H.transpose()+R;
 
 	    // correct the estimate and covariance according to measurement
-	    Eigen::Matrix<double, SIZE, MEASUREMENT_SIZE> K = P*J_H.transpose()*S.inverse();
+	    K = P*J_H.transpose()*S.inverse();
 	    
 	    x = x + K*y;
 	    

@@ -35,11 +35,6 @@ namespace pose_estimator {
       	/** ensure alignment for eigen vector types */
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	
-	static const int DEGREE_OF_FREEDOM = 2;
-	static const int INPUT_SIZE = 3;
-	static const int MEASUREMENT_SIZE = 4;
-	
-
 	/** state estimate */
 	State x;
 	
@@ -49,10 +44,10 @@ namespace pose_estimator {
     private:
 	
       	/**fault detection libary */ 
-	fault_detection::ChiSquared<DEGREE_OF_FREEDOM>* chi_square; 
+	fault_detection::ChiSquared* chi_square; 
 	
 	/** Instance of the Extended Kalman filter*/
-	ExtendedKalmanFilter::EKF<State::SIZE,INPUT_SIZE,MEASUREMENT_SIZE>* filter;
+	ExtendedKalmanFilter::EKF<State::SIZE>* filter;
 	
 	/** process noise */
 	Eigen::Matrix<double, State::SIZE, State::SIZE> Q;
@@ -68,6 +63,7 @@ namespace pose_estimator {
 	void predict(const Eigen::Vector3d &translation_world );
 
 	/** correction step, taking absolute position data */
+	template < unsigned int MEASUREMENT_SIZE, unsigned int DEGREE_OF_FREEDOM >
 	bool correction(const Eigen::Matrix<double, MEASUREMENT_SIZE, 1> &p, 
 			const Eigen::Matrix<double, MEASUREMENT_SIZE, MEASUREMENT_SIZE> &R, 
 			const Eigen::Matrix<double, MEASUREMENT_SIZE, 1> &h, 

@@ -9,8 +9,8 @@ using namespace pose_estimator;
 /** CHECK */ 
 EKFPosYawBiasT::EKFPosYawBiasT() 
 {
-    filter =  new ExtendedKalmanFilter::EKF<State::SIZE,INPUT_SIZE,MEASUREMENT_SIZE>;
-    chi_square = new fault_detection::ChiSquared<DEGREE_OF_FREEDOM>;
+    filter =  new ExtendedKalmanFilter::EKF<State::SIZE>;
+    chi_square = new fault_detection::ChiSquared;
 }
 
 EKFPosYawBiasT::~EKFPosYawBiasT()
@@ -47,6 +47,7 @@ void EKFPosYawBiasT::predict( const Eigen::Vector3d &translation_world )
 
 }
 
+template < unsigned int MEASUREMENT_SIZE, unsigned int DEGREE_OF_FREEDOM >
 bool EKFPosYawBiasT::correction(const Eigen::Matrix<double, MEASUREMENT_SIZE, 1> &p, 
 			const Eigen::Matrix<double, MEASUREMENT_SIZE, MEASUREMENT_SIZE> &R, 
 			const Eigen::Matrix<double, MEASUREMENT_SIZE, 1> &h, 
@@ -55,12 +56,19 @@ bool EKFPosYawBiasT::correction(const Eigen::Matrix<double, MEASUREMENT_SIZE, 1>
 {
 
    //innovation steps
-    filter->innovation( p, h, J_H, R ); 
+    // innovation 
+    Eigen::Matrix<double, MEASUREMENT_SIZE, 1> y = filter->innovation<MEASUREMENT_SIZE>( p, h );
+
+    // innovation covariance matrix
+    Eigen::Matrix<double, MEASUREMENT_SIZE, MEASUREMENT_SIZE> S = filter->innovationCovariance<MEASUREMENT_SIZE>(J_H, R); 
 
     bool reject_observation; 
     //test to reject data 
     if ( reject_threshold!=0 ) 
-	reject_observation = chi_square->rejectData( filter->y.start<DEGREE_OF_FREEDOM>(), filter->S.block<DEGREE_OF_FREEDOM,DEGREE_OF_FREEDOM>(0,0), reject_threshold );
+    {
+	reject_observation = chi_square->rejectData<DEGREE_OF_FREEDOM>(y.start<DEGREE_OF_FREEDOM>(0), S.block<DEGREE_OF_FREEDOM,DEGREE_OF_FREEDOM>(0,0),reject_threshold );
+	
+    }  
     else
 	reject_observation = false;
     
@@ -68,10 +76,10 @@ bool EKFPosYawBiasT::correction(const Eigen::Matrix<double, MEASUREMENT_SIZE, 1>
     {
     
 	//Kalman Gain
-	filter->gain( J_H ); 
+	Eigen::Matrix<double, State::SIZE, MEASUREMENT_SIZE> K = filter->gain<MEASUREMENT_SIZE>( J_H, S );
 	
 	//update teh state 
-	filter->update(J_H ); 
+	filter-> update<MEASUREMENT_SIZE>( J_H, K, y); 
 
 	//get the corrected values 
 	x.vector() = filter->x; 
