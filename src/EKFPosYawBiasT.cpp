@@ -25,6 +25,9 @@ EKFPosYawBiasT::~EKFPosYawBiasT()
 void EKFPosYawBiasT::predict( const Eigen::Vector3d &translation_world )
 {	
   
+  
+    filter->P  = P; 
+    filter->x  = x.vector(); 
     //calculates the rotation from world to world frame corrected by the bias 
     Eigen::Quaterniond R_w2wb;
     R_w2wb = Eigen::AngleAxisd( x.yaw()(0,0), Eigen::Vector3d::UnitZ() ); 
@@ -41,62 +44,29 @@ void EKFPosYawBiasT::predict( const Eigen::Vector3d &translation_world )
     //updates the Kalman Filter 
     filter->prediction( f, J_F, Q ); 
 
+    
     //get the updated values 
     x.vector()=filter->x; 
     P=filter->P; 
-
-}
-
-template < unsigned int MEASUREMENT_SIZE, unsigned int DEGREE_OF_FREEDOM >
-bool EKFPosYawBiasT::correction(const Eigen::Matrix<double, MEASUREMENT_SIZE, 1> &p, 
-			const Eigen::Matrix<double, MEASUREMENT_SIZE, MEASUREMENT_SIZE> &R, 
-			const Eigen::Matrix<double, MEASUREMENT_SIZE, 1> &h, 
-			const Eigen::Matrix<double, MEASUREMENT_SIZE, State::SIZE> &J_H, 
-			float reject_threshold  )
-{
-
-   //innovation steps
-    // innovation 
-    Eigen::Matrix<double, MEASUREMENT_SIZE, 1> y = filter->innovation<MEASUREMENT_SIZE>( p, h );
-
-    // innovation covariance matrix
-    Eigen::Matrix<double, MEASUREMENT_SIZE, MEASUREMENT_SIZE> S = filter->innovationCovariance<MEASUREMENT_SIZE>(J_H, R); 
-
-    bool reject_observation; 
-    //test to reject data 
-    if ( reject_threshold!=0 ) 
-    {
-	reject_observation = chi_square->rejectData<DEGREE_OF_FREEDOM>(y.start<DEGREE_OF_FREEDOM>(0), S.block<DEGREE_OF_FREEDOM,DEGREE_OF_FREEDOM>(0,0),reject_threshold );
-	
-    }  
-    else
-	reject_observation = false;
     
-    if(!reject_observation)
-    {
-    
-	//Kalman Gain
-	Eigen::Matrix<double, State::SIZE, MEASUREMENT_SIZE> K = filter->gain<MEASUREMENT_SIZE>( J_H, S );
-	
-	//update teh state 
-	filter-> update<MEASUREMENT_SIZE>( J_H, K, y); 
 
-	//get the corrected values 
-	x.vector() = filter->x; 
-	P = filter->P; 
-	
-	return false; 
+}	
 
-    }
-    else
-    { 
-	
-	std::cout<< " Rejected Observation " << std::endl; 
-	return true; 
-    
-    }
 
-}
+/** calculates the process noise in world frame*/ 
+void EKFPosYawBiasT::processNoise(const Eigen::Matrix<double, State::SIZE, State::SIZE> &Q)
+{ 
+    this->Q = Q; 
+
+    // Rotate from world to world with bias 
+    //calculates the rotation from world to world frame corrected by the bias 
+    Eigen::Quaterniond R_w2wb;
+    R_w2wb=Eigen::AngleAxisd(x.yaw()(0,0), Eigen::Vector3d::UnitZ()); 
+
+    Eigen::Matrix3d R_w2wb_ = Eigen::Matrix3d(R_w2wb);    
+
+    this->Q.block<3,3>(0,0) = R_w2wb_*this->Q.block<3,3>(0,0) *R_w2wb_.transpose();
+} 
 
 
 /** Calculates the Jacobian of the transition matrix */ 

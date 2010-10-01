@@ -62,21 +62,65 @@ namespace pose_estimator {
 	/** update step taking velocity in world frame without the bias correction */
 	void predict(const Eigen::Vector3d &translation_world );
 
-	/** correction step, taking absolute position data */
-	template < unsigned int MEASUREMENT_SIZE, unsigned int DEGREE_OF_FREEDOM >
-	bool correction(const Eigen::Matrix<double, MEASUREMENT_SIZE, 1> &p, 
-			const Eigen::Matrix<double, MEASUREMENT_SIZE, MEASUREMENT_SIZE> &R, 
-			const Eigen::Matrix<double, MEASUREMENT_SIZE, 1> &h, 
-			const Eigen::Matrix<double, MEASUREMENT_SIZE, State::SIZE> &J_H, 
-			float reject_threshold  );
-
 	/** set the process noise the frame should be world corrected by bias [velocity,  bias] */ 
 	void processNoise(const Eigen::Matrix<double, State::SIZE, State::SIZE> &Q); 
 	
 	/** set the inital values for state x and covariance P */
 	void init(const Eigen::Matrix<double, State::SIZE, State::SIZE> &P, const Eigen::Matrix<double,State::SIZE,1> &x); 
 	
-	
+	template < unsigned int MEASUREMENT_SIZE, unsigned int DEGREE_OF_FREEDOM >
+	bool correction(const Eigen::Matrix<double, MEASUREMENT_SIZE, 1> &p, 
+		      const Eigen::Matrix<double, MEASUREMENT_SIZE, MEASUREMENT_SIZE> &R, 
+		      const Eigen::Matrix<double, MEASUREMENT_SIZE, 1> &h, 
+		      const Eigen::Matrix<double, MEASUREMENT_SIZE, State::SIZE> &J_H, 
+		      float reject_threshold  ) 
+	{
+	    filter->P  = P; 
+	    filter->x  = x.vector(); 
+	    //innovation steps
+	    // innovation 
+	    Eigen::Matrix<double, MEASUREMENT_SIZE, 1> y = filter->innovation<MEASUREMENT_SIZE>( p, h );
+
+	    // innovation covariance matrix
+	    Eigen::Matrix<double, MEASUREMENT_SIZE, MEASUREMENT_SIZE> S = filter->innovationCovariance<MEASUREMENT_SIZE>(J_H, R); 
+
+	    bool reject_observation; 
+	    //test to reject data 
+	    if ( reject_threshold!=0 ) 
+	    {
+	      
+		reject_observation = chi_square->rejectData<DEGREE_OF_FREEDOM>(y.start(DEGREE_OF_FREEDOM), S.block(0,0,DEGREE_OF_FREEDOM,DEGREE_OF_FREEDOM) ,reject_threshold );
+		
+	    }  
+	    else
+		reject_observation = false;
+	    
+	    if(!reject_observation)
+	    {
+	    
+		//Kalman Gain
+		Eigen::Matrix<double, State::SIZE, MEASUREMENT_SIZE> K = filter->gain<MEASUREMENT_SIZE>( J_H, S );
+
+		//update teh state 
+		filter-> update<MEASUREMENT_SIZE>( J_H, K, y); 
+
+		//get the corrected values 
+		x.vector() = filter->x; 
+		P = filter->P; 
+		
+		std::cout <<  std::endl;
+		return false; 
+
+	    }
+	    else
+	    { 
+		
+		std::cout<< " Rejected Observation " << std::endl; 
+		return true; 
+	    
+	    }
+
+	}
       private: 
 	
 	/**jacobian state transition*/ 
