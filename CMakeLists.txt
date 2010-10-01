@@ -30,12 +30,12 @@ set(POSE_HDRS
     src/ExtendedKalmanFilter.hpp
     src/EKFPosYawBiasT.hpp
     src/KalmanFilterTypes.hpp
-    #src/EKFPosVelYawBias.cpp
+    src/EKFPosVelYawBiasT.cpp
     )
 
 set(POSE_SRCS
     src/EKFPosYawBiasT.cpp
-    #src/EKFPosVelYawBias.cpp
+    src/EKFPosVelYawBiasT.cpp
     )
 
 add_library(pose_estimator SHARED ${POSE_SRCS})
