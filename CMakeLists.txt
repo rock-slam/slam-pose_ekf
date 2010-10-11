@@ -28,9 +28,9 @@ include_directories(./src)
 set(POSE_HDRS
     src/KalmanFilter.hpp
     src/ExtendedKalmanFilter.hpp
-    src/EKFPosYawBiasT.hpp
     src/KalmanFilterTypes.hpp
-    src/EKFPosVelYawBiasT.cpp
+    src/EKFPosVelYawBiasT.hpp
+    src/EKFPosYawBiasT.hpp
     )
 
 set(POSE_SRCS

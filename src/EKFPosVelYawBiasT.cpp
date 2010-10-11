@@ -20,7 +20,6 @@ EKFPosVelYawBiasT::~EKFPosVelYawBiasT()
 }
 
 
-
 /** update the filter */ 
 void EKFPosVelYawBiasT::predict(const Eigen::Vector3d &acc_nav, double dt )
 {	
