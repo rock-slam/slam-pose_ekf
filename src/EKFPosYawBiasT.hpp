@@ -8,7 +8,7 @@
 
 
 namespace pose_estimator {
-    class State
+    class StatePosYawBias
     {
     public:
 	static const int SIZE = 4;
@@ -21,7 +21,7 @@ namespace pose_estimator {
 
     public:
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-	State() :
+	StatePosYawBias() :
 	    _x(vector_t::Zero()), _xi( _x.segment<3>(0) ),_yaw(_x.segment<1>(3)) {};
 
 	vector_t& vector() {return _x;};
@@ -36,10 +36,10 @@ namespace pose_estimator {
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	
 	/** state estimate */
-	State x;
+	StatePosYawBias x;
 	
 	/** covariance matrix */
-	Eigen::Matrix<double, State::SIZE, State::SIZE> P;
+	Eigen::Matrix<double, StatePosYawBias::SIZE, StatePosYawBias::SIZE> P;
 	
     private:
 	
@@ -47,10 +47,10 @@ namespace pose_estimator {
 	fault_detection::ChiSquared* chi_square; 
 	
 	/** Instance of the Extended Kalman filter*/
-	ExtendedKalmanFilter::EKF<State::SIZE>* filter;
+	ExtendedKalmanFilter::EKF<StatePosYawBias::SIZE>* filter;
 	
 	/** process noise */
-	Eigen::Matrix<double, State::SIZE, State::SIZE> Q;
+	Eigen::Matrix<double, StatePosYawBias::SIZE, StatePosYawBias::SIZE> Q;
 	
 	
     public:
@@ -63,16 +63,16 @@ namespace pose_estimator {
 	void predict(const Eigen::Vector3d &translation_world );
 
 	/** set the process noise the frame should be world corrected by bias [velocity,  bias] */ 
-	void processNoise(const Eigen::Matrix<double, State::SIZE, State::SIZE> &Q); 
+	void processNoise(const Eigen::Matrix<double, StatePosYawBias::SIZE, StatePosYawBias::SIZE> &Q); 
 	
 	/** set the inital values for state x and covariance P */
-	void init(const Eigen::Matrix<double, State::SIZE, State::SIZE> &P, const Eigen::Matrix<double,State::SIZE,1> &x); 
+	void init(const Eigen::Matrix<double, StatePosYawBias::SIZE, StatePosYawBias::SIZE> &P, const Eigen::Matrix<double,StatePosYawBias::SIZE,1> &x); 
 	
 	template < unsigned int MEASUREMENT_SIZE, unsigned int DEGREE_OF_FREEDOM >
 	bool correction(const Eigen::Matrix<double, MEASUREMENT_SIZE, 1> &p, 
 		      const Eigen::Matrix<double, MEASUREMENT_SIZE, MEASUREMENT_SIZE> &R, 
 		      const Eigen::Matrix<double, MEASUREMENT_SIZE, 1> &h, 
-		      const Eigen::Matrix<double, MEASUREMENT_SIZE, State::SIZE> &J_H, 
+		      const Eigen::Matrix<double, MEASUREMENT_SIZE, StatePosYawBias::SIZE> &J_H, 
 		      float reject_threshold  ) 
 	{
 	    filter->P  = P; 
@@ -99,7 +99,7 @@ namespace pose_estimator {
 	    {
 	    
 		//Kalman Gain
-		Eigen::Matrix<double, State::SIZE, MEASUREMENT_SIZE> K = filter->gain<MEASUREMENT_SIZE>( J_H, S );
+		Eigen::Matrix<double, StatePosYawBias::SIZE, MEASUREMENT_SIZE> K = filter->gain<MEASUREMENT_SIZE>( J_H, S );
 
 		//update teh state 
 		filter-> update<MEASUREMENT_SIZE>( J_H, K, y); 
@@ -124,7 +124,7 @@ namespace pose_estimator {
       private: 
 	
 	/**jacobian state transition*/ 
-	Eigen::Matrix<double, State::SIZE, State::SIZE> jacobianF( const Eigen::Vector3d &translation_world );
+	Eigen::Matrix<double, StatePosYawBias::SIZE, StatePosYawBias::SIZE> jacobianF( const Eigen::Vector3d &translation_world );
 	
 	
     };

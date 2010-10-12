@@ -9,7 +9,7 @@ using namespace pose_estimator;
 /** CHECK */ 
 EKFPosYawBiasT::EKFPosYawBiasT() 
 {
-    filter =  new ExtendedKalmanFilter::EKF<State::SIZE>;
+    filter =  new ExtendedKalmanFilter::EKF<StatePosYawBias::SIZE>;
     chi_square = new fault_detection::ChiSquared;
 }
 
@@ -34,12 +34,12 @@ void EKFPosYawBiasT::predict( const Eigen::Vector3d &translation_world )
     R_w2wb = Eigen::AngleAxisd( x.yaw()(0,0), Eigen::Vector3d::UnitZ() ); 
 
     //sets the transition matrix 
-    Eigen::Matrix<double, State::SIZE, 1> f;
+    Eigen::Matrix<double, StatePosYawBias::SIZE, 1> f;
     f.start<3>() = x.xi() + R_w2wb * translation_world;
     f.end<1>() = x.yaw();
 
     //sets the Jacobian of the state transition matrix 
-    Eigen::Matrix<double, State::SIZE, State::SIZE> J_F
+    Eigen::Matrix<double, StatePosYawBias::SIZE, StatePosYawBias::SIZE> J_F
 	= jacobianF(translation_world );
   
 	
@@ -56,7 +56,7 @@ void EKFPosYawBiasT::predict( const Eigen::Vector3d &translation_world )
 
 
 /** calculates the process noise in world frame*/ 
-void EKFPosYawBiasT::processNoise(const Eigen::Matrix<double, State::SIZE, State::SIZE> &Q)
+void EKFPosYawBiasT::processNoise(const Eigen::Matrix<double, StatePosYawBias::SIZE, StatePosYawBias::SIZE> &Q)
 { 
     this->Q = Q; 
 
@@ -72,14 +72,14 @@ void EKFPosYawBiasT::processNoise(const Eigen::Matrix<double, State::SIZE, State
 
 
 /** Calculates the Jacobian of the transition matrix */ 
-Eigen::Matrix<double, State::SIZE, State::SIZE> EKFPosYawBiasT::jacobianF( const Eigen::Vector3d &translation_world )
+Eigen::Matrix<double, StatePosYawBias::SIZE, StatePosYawBias::SIZE> EKFPosYawBiasT::jacobianF( const Eigen::Vector3d &translation_world )
 {
     //derivate of the rotation do to yaw bias 
     Eigen::Matrix<double, 3,3> dR_z;
     dR_z << -sin( x.yaw()(0,0) ), -cos( x.yaw()(0,0) ), 0, cos( x.yaw()(0,0) ), -sin( x.yaw()(0,0) ),0 ,0 ,0 ,0; 
 
     //jacobian 
-    Eigen::Matrix<double, State::SIZE, State::SIZE> J_F; 
+    Eigen::Matrix<double, StatePosYawBias::SIZE, StatePosYawBias::SIZE> J_F; 
     J_F.setIdentity(); 
     J_F.block<3,1>(0,3)
 	= dR_z * translation_world;
@@ -88,7 +88,7 @@ Eigen::Matrix<double, State::SIZE, State::SIZE> EKFPosYawBiasT::jacobianF( const
 }
 
 /** configurarion hook */ 
-void EKFPosYawBiasT::init(const Eigen::Matrix<double, State::SIZE, State::SIZE> &P, const Eigen::Matrix<double,State::SIZE,1> &x)
+void EKFPosYawBiasT::init(const Eigen::Matrix<double, StatePosYawBias::SIZE, StatePosYawBias::SIZE> &P, const Eigen::Matrix<double,StatePosYawBias::SIZE,1> &x)
 {
     Q.setZero(); 
     this->P = P;
