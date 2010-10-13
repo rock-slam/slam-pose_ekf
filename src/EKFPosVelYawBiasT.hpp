@@ -23,7 +23,7 @@ namespace pose_estimator {
     public:
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	StatePosVelYawBias() :
-	    _x(vector_t::Zero()), _xi( _x.segment<3>(0) ), _vi( _x.segment<3>(3) ),_yaw(_x.segment<1>(3)) {};
+	    _x(vector_t::Zero()), _xi( _x.segment<3>(0) ), _vi( _x.segment<3>(3) ),_yaw(_x.segment<1>(6)) {};
 
 	vector_t& vector() {return _x;};
 	Eigen::Block<vector_t, 3, 1>& xi() {return _xi;}
