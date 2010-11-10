@@ -29,13 +29,13 @@ set(POSE_HDRS
     src/KalmanFilter.hpp
     src/ExtendedKalmanFilter.hpp
     src/KalmanFilterTypes.hpp
-    src/EKFPosVelYawBiasT.hpp
     src/EKFPosYawBiasT.hpp
+    src/KFD_PosVelOriAcc.hpp
     )
 
 set(POSE_SRCS
     src/EKFPosYawBiasT.cpp
-    src/EKFPosVelYawBiasT.cpp
+    src/KFD_PosVelOriAcc.cpp
     )
 
 add_library(pose_estimator SHARED ${POSE_SRCS})
