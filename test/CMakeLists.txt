@@ -6,4 +6,4 @@ link_directories(${ASGUARD_LINK_DIR})
 
 set(SRCS UnitTest.cpp)
 add_executable(unit_test ${SRCS})
-target_link_libraries(unit_test pose_estimator)
+target_link_libraries(unit_test pose_ekf)

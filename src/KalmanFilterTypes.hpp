@@ -4,7 +4,7 @@
 #include <base/time.h>
 #include <base/wrappers/eigen.h>
 
-namespace pose_estimator
+namespace pose_ekf
 { 
 
     struct KalmanFilterState

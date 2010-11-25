@@ -4,10 +4,10 @@
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 #include "KalmanFilter.hpp"
-#include <fault_detection/FaultDetection.hpp>
+#include "FaultDetection.hpp"
 
 
-namespace pose_estimator {
+namespace pose_ekf {
     class StatePosVelOriAcc
       {
     public:

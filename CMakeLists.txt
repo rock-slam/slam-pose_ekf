@@ -15,10 +15,6 @@ find_package(Boost REQUIRED)
 include_directories(${Boost_INCLUDE_DIRS})
 link_directories(${Boost_LIBRARY_DIRS})
 
-pkg_check_modules(FAULT_DETECTION REQUIRED "fault_detection")
-include_directories(${FAULT_DETECTION_INCLUDE_DIRS})
-link_directories(${FAULT_DETECTION_LIBRARY_DIRS})
-
 pkg_check_modules(DFKI REQUIRED "base-types")
 include_directories(${DFKI_INCLUDE_DIRS})
 link_directories(${DFKI_LIBRARY_DIRS})
@@ -57,11 +53,6 @@ install(FILES ${CMAKE_BINARY_DIR}/pose_ekf.pc DESTINATION lib/pkgconfig)
 
 include_directories(${PROJECT_SOURCE_DIR})
 
-pkg_check_modules(ASGUARD asguard)
-if (ASGUARD_FOUND)
-    add_subdirectory(test)
-else()
-    message(STATUS robots/asguard not installed, the test suite will not be built)
-endif()
+add_subdirectory(test)
 
 
