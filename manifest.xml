@@ -9,6 +9,5 @@
         DFKI/robotik@dfki.de
     </copyright>
 
-    <depend package="base" />
-    <depend package="slam/fault_detection" />
+    <depend package="base/types" />
 </package>
