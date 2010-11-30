@@ -3,34 +3,37 @@
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
+#include <Eigen/SVD>
 #include "KalmanFilter.hpp"
-#include <fault_detection/FaultDetection.hpp>
-
+#include "KalmanFilterTypes.hpp"
+#include <dagon/Configuration.hpp>
 
 namespace pose_estimator {
     class StatePosVelOriAcc
       {
     public:
-	static const int SIZE = 12;
+	static const int SIZE = 15;
 	typedef Eigen::Matrix<double,SIZE,1> vector_t;
 
     protected:
 	vector_t _x; 
 	Eigen::Block<vector_t, 3, 1> _pos_w;
-	Eigen::Block<vector_t, 3, 1> _vel_b;
-	Eigen::Block<vector_t, 3, 1> _acc_b;
+	Eigen::Block<vector_t, 3, 1> _vel_i;
+	Eigen::Block<vector_t, 3, 1> _acc_i;
 	Eigen::Block<vector_t, 3, 1> _or_w;
+	Eigen::Block<vector_t, 3, 1> _w_i;
 
     public:
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	StatePosVelOriAcc() :
-	    _x(vector_t::Zero()), _pos_w( _x.segment<3>(0) ), _vel_b( _x.segment<3>(3) ),_acc_b(_x.segment<3>(6)), _or_w(_x.segment<3>(9)) {};
+	    _x(vector_t::Zero()), _pos_w( _x.segment<3>(0) ), _vel_i( _x.segment<3>(3) ),_acc_i(_x.segment<3>(6)), _or_w(_x.segment<3>(9)), _w_i(_x.segment<3>(12)) {};
 
 	vector_t& vector() {return _x;};
 	Eigen::Block<vector_t, 3, 1>& pos_world() {return _pos_w;}
-	Eigen::Block<vector_t, 3, 1>& vel_inertial() {return _vel_b;}	
-	Eigen::Block<vector_t, 3, 1>& acc_inertial() {return _acc_b;}
+	Eigen::Block<vector_t, 3, 1>& vel_inertial() {return _vel_i;}	
+	Eigen::Block<vector_t, 3, 1>& acc_inertial() {return _acc_i;}
 	Eigen::Block<vector_t, 3, 1>& or_w() {return _or_w;}
+	Eigen::Block<vector_t, 3, 1>& angular_velocity_inertial() {return _w_i;}
     };
 
     class KFD_PosVelOriAcc
@@ -39,16 +42,27 @@ namespace pose_estimator {
       	/** ensure alignment for eigen vector types */
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	
+	/** Dagon Transformation object */
+	dagon::Configuration tf; 
+	
+	static const unsigned int _POS_MEASUREMENT_SIZE = 3; 
+	static const unsigned int _POS_DEGREE_OF_FREEDOM = 3;
+	static const unsigned int _ORI_MEASUREMENT_SIZE = 3; 
+	static const unsigned int _ORI_DEGREE_OF_FREEDOM = 3; 
+	
 	/** state estimate */
 	StatePosVelOriAcc x;
 	
 	/** covariance matrix */
-	Eigen::Matrix<double, StatePosVelOriAcc::SIZE, StatePosVelOriAcc::SIZE> P;
+	//Eigen::Matrix<double, StatePosVelOriAcc::SIZE, StatePosVelOriAcc::SIZE> P;
 	
-    private:
+    public:
+	/** estimated position, velocityand orientation */ 
+	Eigen::Vector3d velocity_inertial; 
+	Eigen::Vector3d position_world; 
+	Eigen::Quaterniond R_inertial_2_world; 
 	
-      	/**fault detection libary */ 
-	fault_detection::ChiSquared* chi_square; 
+
 	
 	/** Instance of the Extended Kalman filter*/
 	KalmanFilter::KF<StatePosVelOriAcc::SIZE>* filter;
@@ -58,72 +72,56 @@ namespace pose_estimator {
 	
 	
     public:
-
 	KFD_PosVelOriAcc();
 	~KFD_PosVelOriAcc();
   
+	/** Copy the Kalman Filter State from KFD*/ 
+	void copyState ( const KFD_PosVelOriAcc& kfd ); 
 	
-	/** update step taking velocity in world frame without the bias correction */
-	void predict(const Eigen::Vector3d &acc_nav, double dt, Eigen::Matrix3d R_iertial_2_world );
+	/** A 3D position observation */ 
+	bool positionObservation( Eigen::Vector3d position, Eigen::Matrix3d covariance, int reject_position_threshol); 
+	
+	/** A 3D orientation observation */ 
+	bool orientationObservation( Eigen::Quaterniond orientation, Eigen::Matrix3d covariance, int reject_orientation_threshol);
+	
+	/** set the position */  
+	void setPosition( Eigen::Vector3d position, Eigen::Matrix3d covariance ); 
 
-	/** set the process noise the frame should be world corrected by bias [velocity,  bias] */ 
-	void processNoise(const Eigen::Matrix<double, StatePosVelOriAcc::SIZE, StatePosVelOriAcc::SIZE> &Q); 
+	/** set orientation */  
+	void setOrientation( Eigen::Quaterniond orientation, Eigen::Matrix3d covariance );
 	
+	/** The current state estimation will be corrected by the Kalman Filter error calculation 
+	than the states in the filter will be reseted. */ 
+	void correct_state();
+	
+	/** input acc and angular velocity data to the filter updating the kalman filter and pose estimation */ 
+	void predict(Eigen::Vector3d acc_intertial, Eigen::Vector3d angular_velocity, double dt,Eigen::Matrix<double, StatePosVelOriAcc::SIZE, StatePosVelOriAcc::SIZE> process_noise);
+	
+	/** gets the estimated position */ 
+	Eigen::Vector3d getPosition(); 
+	
+	/** gets the estimated velocity */ 
+	Eigen::Vector3d getVelocity();
+	
+	/** gets the estimated pose */ 
+	Eigen::Quaterniond getOrientation(); 
+	
+	/** get the Position covariance */
+	Eigen::Matrix3d getPositionCovariance(); 
+	
+	/** get the Velocity covariance */
+	Eigen::Matrix3d getVelocityCovariance();
+	
+	/** get the Orientation covariance */
+	Eigen::Matrix3d getOrientationCovariance();
+	
+	/** get  orientation correction calculated by the kalman filter */ 
+	Eigen::Quaterniond angularCorrection();
+      
 	/** set the inital values for state x and covariance P */
 	void init(const Eigen::Matrix<double, StatePosVelOriAcc::SIZE, StatePosVelOriAcc::SIZE> &P, const Eigen::Matrix<double,StatePosVelOriAcc::SIZE,1> &x); 
-	
-	template < unsigned int MEASUREMENT_SIZE, unsigned int DEGREE_OF_FREEDOM >
-	bool correction(const Eigen::Matrix<double, MEASUREMENT_SIZE, 1> &p, 
-		      const Eigen::Matrix<double, MEASUREMENT_SIZE, MEASUREMENT_SIZE> &R, 
-		      const Eigen::Matrix<double, MEASUREMENT_SIZE, StatePosVelOriAcc::SIZE> &H, 
-		      float reject_threshold  ) 
-	{
-	    filter->P  = P; 
-	    filter->x  = x.vector(); 
-	    //innovation steps
-	    // innovation 
-	    Eigen::Matrix<double, MEASUREMENT_SIZE, 1> y = filter->innovation<MEASUREMENT_SIZE>( p, H );
 
-	    // innovation covariance matrix
-	    Eigen::Matrix<double, MEASUREMENT_SIZE, MEASUREMENT_SIZE> S = filter->innovationCovariance<MEASUREMENT_SIZE>(H, R); 
 
-	    bool reject_observation; 
-	    //test to reject data 
-	    if ( reject_threshold!=0 ) 
-	    {
-	      
-		reject_observation = chi_square->rejectData<DEGREE_OF_FREEDOM>(y.start(DEGREE_OF_FREEDOM), S.block(0,0,DEGREE_OF_FREEDOM,DEGREE_OF_FREEDOM) ,reject_threshold );
-		
-	    }  
-	    else
-		reject_observation = false;
-	    
-	    if(!reject_observation)
-	    {
-	    
-		//Kalman Gain
-		Eigen::Matrix<double, StatePosVelOriAcc::SIZE, MEASUREMENT_SIZE> K = filter->gain<MEASUREMENT_SIZE>( H, S );
-
-		//update teh state 
-		filter-> update<MEASUREMENT_SIZE>( H, K, y); 
-
-		//get the corrected values 
-		x.vector() = filter->x; 
-		P = filter->P; 
-		
-		std::cout <<  std::endl;
-		return false; 
-
-	    }
-	    else
-	    { 
-		
-		std::cout<< " Rejected Observation " << std::endl; 
-		return true; 
-	    
-	    }
-
-	}
     
 	
     };

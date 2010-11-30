@@ -31,6 +31,7 @@ set(POSE_HDRS
     src/KalmanFilterTypes.hpp
     src/EKFPosYawBiasT.hpp
     src/KFD_PosVelOriAcc.hpp
+    src/SlowFastAggregator.hpp
     )
 
 set(POSE_SRCS
