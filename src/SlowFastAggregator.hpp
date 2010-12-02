@@ -48,12 +48,11 @@ class SlowFastAggregator
     virtual void sampleProcessedFast( int sample_idx )=0;
     
     /**
-      process the sample of the slow and fast filter
-      The fast filter sample will only be processed if the slowFilter latency > max_delay 
-      the copy condition from the slow to the fast filter is if the slow Filter processed a sample 
-      not processed by the fast filter
+      process the sample of the slow filter
+      return boolean - if there should be a copy or not from the slow filter to the fast filter
+      the copy condition is if the slow Filter processed a sample not processed by the fast filter
     */
-    void step( double max_delay )
+    bool slowAggrStep( double max_delay )
     {
          for( int i = 0; i < stream_size; i++)
 	{
@@ -69,6 +68,7 @@ class SlowFastAggregator
 		//if I received this sample 
 		if( status.first != 0)
 		{
+		    
 		    waiting_sample[i] = false;
 		    //slow filter will use a sample not used by the fast filter
 		    waited_sample_processed = true;
@@ -77,13 +77,11 @@ class SlowFastAggregator
 	    }
 	    
 	}
-
-      //std::cout << " *** " <<status.first  << std::endl; 
-      // then call the streams in the relevant order
-	while( slow_aggr->step() ){}
+ 
+	// then call the streams in the relevant order
+	while( slow_aggr->step() )
 	{	
-//	  std::cout << " slow step " << num_sample_slow[0]<< ", " << num_sample_slow[1]<< ", " << num_sample_slow[2]<< ", " << num_sample_slow[3] << std::endl;
-//	  std::cout << slow_aggr << std::endl; 
+
 	    for ( int i = 0; i < stream_size; i++) 
 	    {
 		const std::pair<size_t, size_t> &status( slow_aggr->getBufferStatus(i) );
@@ -102,8 +100,7 @@ class SlowFastAggregator
 	    }
 
 	}
-
-      // std::cout << slowFilter->aggr.getLatency().toSeconds() << std::endl; 
+	
 	if ( slow_aggr->getLatency().toSeconds() >  max_delay )
 	{
 	    //if there is latency in the slow filter, it means that it is waiting for a sample,
@@ -117,6 +114,7 @@ class SlowFastAggregator
 		//if there is 0 samples in the buffer it means I am waiting for this sample 
 		if( status.first == 0 && !waiting_sample[i] )
 		{
+		    
 		    waiting_sample[i] = true; 
 		}
 		
@@ -124,12 +122,31 @@ class SlowFastAggregator
 	    
 	    if ( waited_sample_processed ) 
 	    {
-
 		waited_sample_processed = false; 
-		fast_aggr->copyState( *slow_aggr );
+		return true; 
 	    
 	    }
-	    
+	    else 
+	    {
+		return false; 
+	    }
+	}
+	else 
+	{
+	    //even if there is a new sample processed the slow filter aint delayed enouth that the fast filter needs to be processed
+	    return false; 
+	}
+    }
+    
+    /**
+    * process the fast agregator sample if the slow agg has a latency bigger than the max_delay
+    */ 
+    void fastAggrStep( double max_delay )
+    {
+      
+	if ( slow_aggr->getLatency().toSeconds() >  max_delay )
+	{	
+	  
 	    for( int i = 0; i < stream_size; i++)
 	    {
 		
@@ -161,6 +178,7 @@ class SlowFastAggregator
 		}
 		
 	    }
+	    
 
 	}
     }
