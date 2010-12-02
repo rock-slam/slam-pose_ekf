@@ -6,7 +6,6 @@
 #include <Eigen/SVD>
 #include "KalmanFilter.hpp"
 #include "KalmanFilterTypes.hpp"
-#include <dagon/Configuration.hpp>
 
 namespace pose_estimator {
     class StatePosVelOriAcc
@@ -41,9 +40,6 @@ namespace pose_estimator {
     public:
       	/** ensure alignment for eigen vector types */
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-	
-	/** Dagon Transformation object */
-	dagon::Configuration tf; 
 	
 	static const unsigned int _POS_MEASUREMENT_SIZE = 3; 
 	static const unsigned int _POS_DEGREE_OF_FREEDOM = 3;
@@ -104,7 +100,7 @@ namespace pose_estimator {
 	Eigen::Vector3d getVelocity();
 	
 	/** gets the estimated pose */ 
-	Eigen::Quaterniond getOrientation(); 
+	Eigen::Quaterniond getOrientationInertial2World(); 
 	
 	/** get the Position covariance */
 	Eigen::Matrix3d getPositionCovariance(); 

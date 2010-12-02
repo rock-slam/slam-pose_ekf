@@ -211,9 +211,9 @@ Eigen::Vector3d KFD_PosVelOriAcc::getVelocity()
     return (velocity_inertial - x.vel_inertial()); 
 }
 
-Eigen::Quaterniond KFD_PosVelOriAcc::getOrientation()
+Eigen::Quaterniond KFD_PosVelOriAcc::getOrientationInertial2World()
 {  
-    return (angularCorrection() * R_inertial_2_world) * tf.R_body_2_inertial;
+    return (angularCorrection() * R_inertial_2_world);
 }
 
 Eigen::Matrix3d KFD_PosVelOriAcc::getPositionCovariance()
