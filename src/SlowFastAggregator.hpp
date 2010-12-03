@@ -37,7 +37,6 @@ class SlowFastAggregator
 	
 	waited_sample_processed = false; 
 	
-	std::cout << " ********* STREAM SIZE * " << stream_size << std::endl; 
 	
     }
  
