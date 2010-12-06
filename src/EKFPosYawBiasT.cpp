@@ -10,28 +10,30 @@ using namespace pose_estimator;
 EKFPosYawBiasT::EKFPosYawBiasT() 
 {
     filter =  new ExtendedKalmanFilter::EKF<StatePosYawBias::SIZE>;
-    chi_square = new fault_detection::ChiSquared;
+    
 }
 
 EKFPosYawBiasT::~EKFPosYawBiasT()
 {
     delete filter; 
-    delete chi_square;
+    
 }
 
 
 
 /** update the filter */ 
-void EKFPosYawBiasT::predict( const Eigen::Vector3d &translation_world )
+void EKFPosYawBiasT::predict( const Eigen::Vector3d &translation_world, const Eigen::Matrix<double, StatePosYawBias::SIZE, StatePosYawBias::SIZE> &Q )
 {	
-  
-  
-    filter->P  = P; 
-    filter->x  = x.vector(); 
-    
+      this->Q = Q; 
+
+    // Rotate from world to world with bias 
     //calculates the rotation from world to world frame corrected by the bias 
     Eigen::Quaterniond R_w2wb;
-    R_w2wb = Eigen::AngleAxisd( x.yaw()(0,0), Eigen::Vector3d::UnitZ() ); 
+    R_w2wb=Eigen::AngleAxisd(x.yaw()(0,0), Eigen::Vector3d::UnitZ()); 
+
+    Eigen::Matrix3d R_w2wb_ = Eigen::Matrix3d(R_w2wb);    
+
+    this->Q.block<3,3>(0,0) = R_w2wb_*this->Q.block<3,3>(0,0) *R_w2wb_.transpose();
 
     //sets the transition matrix 
     Eigen::Matrix<double, StatePosYawBias::SIZE, 1> f;
@@ -49,28 +51,53 @@ void EKFPosYawBiasT::predict( const Eigen::Vector3d &translation_world )
     
     //get the updated values 
     x.vector()=filter->x; 
-    P=filter->P; 
     
 
 }	
 
 
-/** calculates the process noise in world frame*/ 
-void EKFPosYawBiasT::processNoise(const Eigen::Matrix<double, StatePosYawBias::SIZE, StatePosYawBias::SIZE> &Q)
-{ 
-    this->Q = Q; 
+/** Corrects th KF based on position observation 
+Only 2 degree of freedom for rejection, position in x and y */ 
+bool EKFPosYawBiasT::correctPosition(const Eigen::Vector3d &position, const Eigen::Matrix3d &covariance, float reject_threshold )
+{
+  
+	Eigen::Matrix<double, 3, StatePosYawBias::SIZE > J_H;
+	J_H.setIdentity();
+	
+	Eigen::Matrix<double, 3, 1 > h
+	    = J_H * x.vector(); 
 
-    // Rotate from world to world with bias 
-    //calculates the rotation from world to world frame corrected by the bias 
-    Eigen::Quaterniond R_w2wb;
-    R_w2wb=Eigen::AngleAxisd(x.yaw()(0,0), Eigen::Vector3d::UnitZ()); 
-
-    Eigen::Matrix3d R_w2wb_ = Eigen::Matrix3d(R_w2wb);    
-
-    this->Q.block<3,3>(0,0) = R_w2wb_*this->Q.block<3,3>(0,0) *R_w2wb_.transpose();
-} 
+	bool reject = filter->correctionChiSquare< 3, 2 >( position,  covariance, h, J_H, reject_threshold );
+	
+	x.vector() = filter->x; 
+	
+	return reject; 
+		    
+}
 
 
+/** Corrects th KF based on position and orientation correction observation
+Only 2 degree of freedom for rejection, position in x and y */ 
+bool EKFPosYawBiasT::correctPositionOrientation(const Eigen::Vector4d &positionOrientation, const Eigen::Matrix4d &covariance, float reject_threshold )
+{
+
+    Eigen::Matrix<double, 4,  StatePosYawBias::SIZE> J_H;
+    J_H.setIdentity();
+    
+    Eigen::Matrix<double, 4, 1> h
+      = J_H*x.vector(); 
+      
+    // do the measurement
+    bool reject = filter->correctionChiSquare< 4, 2 >( positionOrientation,  covariance, h, J_H, reject_threshold );
+    
+    x.vector() = filter->x; 
+    
+    return reject; 
+
+
+}
+	
+	
 /** Calculates the Jacobian of the transition matrix */ 
 Eigen::Matrix<double, StatePosYawBias::SIZE, StatePosYawBias::SIZE> EKFPosYawBiasT::jacobianF( const Eigen::Vector3d &translation_world )
 {
@@ -87,12 +114,34 @@ Eigen::Matrix<double, StatePosYawBias::SIZE, StatePosYawBias::SIZE> EKFPosYawBia
     return J_F;
 }
 
+Eigen::Matrix3d EKFPosYawBiasT::getCovariancePosition() 
+{
+    return filter->P.block<3,3>(0,0);
+}
+
+Eigen::Vector3d EKFPosYawBiasT::getPosition()
+{
+    return x.xi();
+}
+
+Eigen::Quaterniond EKFPosYawBiasT::getOrientationCorrection()
+{
+    Eigen::Quaterniond yawCorrection; 
+    yawCorrection = Eigen::AngleAxisd( x.yaw()(0,0), Eigen::Vector3d::UnitZ() ); 
+    return yawCorrection;
+}
+
+double EKFPosYawBiasT::getOrientationCorrectionCovariance()
+{
+    return filter->P(3,3);
+}
+
 /** configurarion hook */ 
 void EKFPosYawBiasT::init(const Eigen::Matrix<double, StatePosYawBias::SIZE, StatePosYawBias::SIZE> &P, const Eigen::Matrix<double,StatePosYawBias::SIZE,1> &x)
 {
     Q.setZero(); 
-    this->P = P;
+    filter->P = P;
     this->x.vector() = x; 
-
+    filter->x = x; 
 }
 

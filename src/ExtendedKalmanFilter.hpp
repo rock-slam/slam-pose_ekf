@@ -3,7 +3,7 @@
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
-
+#include <fault_detection/FaultDetection.hpp>
 
 namespace ExtendedKalmanFilter {
  
@@ -21,7 +21,25 @@ class EKF
 	/** covariance matrix */
 	Eigen::Matrix<double, SIZE, SIZE> P;
 	
+	/**fault detection libary */ 
+	fault_detection::ChiSquared* chi_square; 
+	
       public:
+	
+	EKF()
+	{
+
+	      chi_square = new fault_detection::ChiSquared;
+	      x = Eigen::Matrix<double,SIZE,1>::Zero(); 
+	      P = Eigen::Matrix<double, SIZE, SIZE>::Zero();
+	      
+	}
+	
+	~EKF()
+	{
+	    delete chi_square; 
+	}
+	
 	/** prediction step 
 	    f - state transition
 	    Q - process noise covariance matrix, 
@@ -132,6 +150,51 @@ class EKF
 	    
 	    P = (Eigen::Matrix<double, SIZE, SIZE>::Identity() - K*J_H)*P;
 	    
+	}
+	
+	template < unsigned int MEASUREMENT_SIZE, unsigned int DEGREE_OF_FREEDOM >
+	bool correctionChiSquare(const Eigen::Matrix<double, MEASUREMENT_SIZE, 1> &p, 
+		      const Eigen::Matrix<double, MEASUREMENT_SIZE, MEASUREMENT_SIZE> &R, 
+		      const Eigen::Matrix<double, MEASUREMENT_SIZE, 1> &h, 
+		      const Eigen::Matrix<double, MEASUREMENT_SIZE, SIZE> &J_H, 
+		      float reject_threshold  ) 
+	{
+	   
+	    //innovation steps
+	    // innovation 
+	    Eigen::Matrix<double, MEASUREMENT_SIZE, 1> y = innovation<MEASUREMENT_SIZE>( p, h );
+
+	    // innovation covariance matrix
+	    Eigen::Matrix<double, MEASUREMENT_SIZE, MEASUREMENT_SIZE> S = innovationCovariance<MEASUREMENT_SIZE>(J_H, R); 
+
+	    bool reject_observation; 
+	    //test to reject data 
+	    if ( reject_threshold!=0 ) 
+	    {
+	      
+		reject_observation = chi_square->rejectData<DEGREE_OF_FREEDOM>(y.start(DEGREE_OF_FREEDOM), S.block(0,0,DEGREE_OF_FREEDOM,DEGREE_OF_FREEDOM) ,reject_threshold );
+		
+	    }  
+	    else
+		reject_observation = false;
+	    
+	    if(!reject_observation)
+	    {
+	    
+		//Kalman Gain
+		Eigen::Matrix<double, SIZE, MEASUREMENT_SIZE> K = gain<MEASUREMENT_SIZE>( J_H, S );
+
+		//update teh state 
+		update<MEASUREMENT_SIZE>( J_H, K, y); 
+
+		return false; 
+
+	    }
+	    else
+	    { 
+		return true; 
+	    }
+
 	}
 	
     };
