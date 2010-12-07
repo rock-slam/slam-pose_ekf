@@ -114,6 +114,24 @@ Eigen::Matrix<double, StatePosYawBias::SIZE, StatePosYawBias::SIZE> EKFPosYawBia
     return J_F;
 }
 
+void EKFPosYawBiasT::copyState ( const EKFPosYawBiasT& kfd )
+{
+  
+    x = kfd.x; 
+    filter->x = kfd.filter->x;
+    filter->P = kfd.filter->P;
+    
+}
+
+void EKFPosYawBiasT::setInitialPosition( const Eigen::Vector3d &position, const Eigen::Matrix3d &covariance )
+{
+  
+    filter->x.start<3>() = position;
+    filter->P.block<3,3>(0,0) = covariance; 
+    x.vector() = filter->x; 
+	    
+}
+
 Eigen::Matrix3d EKFPosYawBiasT::getCovariancePosition() 
 {
     return filter->P.block<3,3>(0,0);

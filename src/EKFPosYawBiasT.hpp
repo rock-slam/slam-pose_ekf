@@ -54,6 +54,8 @@ namespace pose_estimator {
 	EKFPosYawBiasT();
 	~EKFPosYawBiasT();
   
+	/** Copy the Kalman Filter State from KFD*/ 
+	void copyState ( const EKFPosYawBiasT& kfd ); 
 	
 	/** update step taking velocity in world frame without the bias correction */
 	void predict(const Eigen::Vector3d &translation_world, const Eigen::Matrix<double, StatePosYawBias::SIZE, StatePosYawBias::SIZE> &Q);
@@ -61,14 +63,14 @@ namespace pose_estimator {
 	/** set the inital values for state x and covariance P */
 	void init(const Eigen::Matrix<double, StatePosYawBias::SIZE, StatePosYawBias::SIZE> &P, const Eigen::Matrix<double,StatePosYawBias::SIZE,1> &x); 
 	
-	
-	Eigen::Matrix3d getCovariancePosition(); 
-	Eigen::Vector3d getPosition();
-	
 	/**gets the rotation from world to world corrected by the bias frame calculated by the filter  R_ImuWorld_2_world*/
 	Eigen::Quaterniond getOrientationCorrection();
-	
+	Eigen::Matrix3d getCovariancePosition(); 
+	Eigen::Vector3d getPosition();
 	double getOrientationCorrectionCovariance();
+
+	/** sets the initial position and position covariance  */
+	void setInitialPosition( const Eigen::Vector3d &position, const Eigen::Matrix3d &covariance ); 
 	
 	/** Corrects th KF based on position observation */ 
 	bool correctPosition( const Eigen::Vector3d &position, const Eigen::Matrix3d &covariance, float reject_threshold ); 
