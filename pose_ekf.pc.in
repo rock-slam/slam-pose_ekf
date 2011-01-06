@@ -3,9 +3,9 @@ exec_prefix=@CMAKE_INSTALL_PREFIX@
 libdir=${prefix}/lib
 includedir=${prefix}/include
 
-Name: pose_estimator
+Name: pose_ekf
 Description: Library for estimating the robot pose from various sensor inputs 
 Version: @PROJECT_VERSION@
-Libs: -L${libdir} -lpose_estimator
+Libs: -L${libdir} -lpose_ekf
 Cflags: -I${includedir}
 

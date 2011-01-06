@@ -1,9 +1,9 @@
 #include "EKFPosYawBiasT.hpp"
 #include <Eigen/LU> 
 #include <math.h>
-#include <fault_detection/FaultDetection.hpp>
+#include "FaultDetection.hpp"
 
-using namespace pose_estimator;
+using namespace pose_ekf;
 
 
 /** CHECK */ 

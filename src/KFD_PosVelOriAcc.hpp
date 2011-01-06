@@ -5,9 +5,12 @@
 #include <Eigen/Geometry>
 #include <Eigen/SVD>
 #include "KalmanFilter.hpp"
-#include "KalmanFilterTypes.hpp"
 
-namespace pose_estimator {
+#include "FaultDetection.hpp"
+
+
+
+namespace pose_ekf {
     class StatePosVelOriAcc
       {
     public:

@@ -5,9 +5,10 @@
 #include <Eigen/Geometry>
 #include "ExtendedKalmanFilter.hpp"
 
+#include "FaultDetection.hpp"
 
 
-namespace pose_estimator {
+namespace pose_ekf {
     class StatePosYawBias
     {
     public:
