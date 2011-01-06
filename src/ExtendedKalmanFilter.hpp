@@ -3,7 +3,7 @@
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
-#include <fault_detection/FaultDetection.hpp>
+#include "FaultDetection.hpp"
 
 namespace ExtendedKalmanFilter {
  
@@ -22,14 +22,14 @@ class EKF
 	Eigen::Matrix<double, SIZE, SIZE> P;
 	
 	/**fault detection libary */ 
-	fault_detection::ChiSquared* chi_square; 
+	pose_ekf::ChiSquared* chi_square; 
 	
       public:
 	
 	EKF()
 	{
 
-	      chi_square = new fault_detection::ChiSquared;
+	      chi_square = new pose_ekf::ChiSquared;
 	      x = Eigen::Matrix<double,SIZE,1>::Zero(); 
 	      P = Eigen::Matrix<double, SIZE, SIZE>::Zero();
 	      

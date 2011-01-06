@@ -4,7 +4,7 @@
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
-namespace fault_detection{ 
+namespace pose_ekf{ 
 
 
 class ChiSquared 
