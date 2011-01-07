@@ -3,7 +3,7 @@
 
 #include <StreamAligner.hpp>
 
-
+namespace pose_ekf {
 class SlowFastAggregator
 {
   
@@ -183,5 +183,6 @@ class SlowFastAggregator
     }
     
 };
+}
 
 #endif // SLOWFASTAGGREGATOR_H
