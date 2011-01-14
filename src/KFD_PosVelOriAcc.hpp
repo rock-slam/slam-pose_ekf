@@ -45,7 +45,9 @@ namespace pose_ekf {
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	
 	static const unsigned int _POS_MEASUREMENT_SIZE = 3; 
+	static const unsigned int _VEL_MEASUREMENT_SIZE = 3; 
 	static const unsigned int _POS_DEGREE_OF_FREEDOM = 3;
+	static const unsigned int _VEL_DEGREE_OF_FREEDOM = 3;
 	static const unsigned int _ORI_MEASUREMENT_SIZE = 3; 
 	static const unsigned int _ORI_DEGREE_OF_FREEDOM = 3; 
 	
@@ -78,10 +80,13 @@ namespace pose_ekf {
 	void copyState ( const KFD_PosVelOriAcc& kfd ); 
 	
 	/** A 3D position observation */ 
-	bool positionObservation( Eigen::Vector3d position, Eigen::Matrix3d covariance, int reject_position_threshol); 
+	bool positionObservation( Eigen::Vector3d position, Eigen::Matrix3d covariance, float reject_position_threshol); 
+	
+	/** A 3D velocity observation */ 
+	bool velocityObservation(Eigen::Vector3d velocity_body, Eigen::Matrix3d covariance, float reject_velocity_threshol);
 	
 	/** A 3D orientation observation */ 
-	bool orientationObservation( Eigen::Quaterniond orientation, Eigen::Matrix3d covariance, int reject_orientation_threshol);
+	bool orientationObservation( Eigen::Quaterniond orientation, Eigen::Matrix3d covariance, float reject_orientation_threshol);
 	
 	/** set the position */  
 	void setPosition( Eigen::Vector3d position, Eigen::Matrix3d covariance ); 

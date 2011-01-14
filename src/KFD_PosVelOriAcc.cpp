@@ -58,9 +58,6 @@ void KFD_PosVelOriAcc::predict(Eigen::Vector3d acc_intertial, Eigen::Vector3d an
 	  velocity_inertial = velocity_inertial + acc_intertial * dt; 
 	    
 	  /** Kalman Filter */ 
-	  //update the error 
-	  //processNoise( process_noise );  
-	  //predict(velocity_inertial, dt, Eigen::Matrix3d( R_inertial_2_world ), angular_velocity ); 
 	  
 	  //sets the transition matrix 
 	  Eigen::Matrix<double, StatePosVelOriAcc::SIZE, StatePosVelOriAcc::SIZE> F;
@@ -73,9 +70,9 @@ void KFD_PosVelOriAcc::predict(Eigen::Vector3d acc_intertial, Eigen::Vector3d an
 	  F.block<3,3>(9,9) << 0, angular_velocity[2], -angular_velocity[1],
 			      -angular_velocity[2], 0, angular_velocity[0],
 			      angular_velocity[1], -angular_velocity[0], 0; 
-	  F.block<3,3>(9,12) =  Eigen::Matrix3d( R_inertial_2_world );
+	  F.block<3,3>(9,12) =  -Eigen::Matrix3d( R_inertial_2_world );
 	
-	// std::cout << "F \n" << F << std::endl; 
+	 //std::cout << "F \n" << F << std::endl; 
 	/* std::cout 
 	      << "0 0 0 R R R 0 0 0 0 -vel_z vel_y 0 0 0\n" 
 	      << "0 0 0 R R R 0 0 0 vel_z 0 -vel_x 0 0 0\n"  
@@ -99,11 +96,12 @@ void KFD_PosVelOriAcc::predict(Eigen::Vector3d acc_intertial, Eigen::Vector3d an
 
 	  //get the updated values 
 	  x.vector()=filter->x; 
-    
+	  
+	 
 	  
 }
 
-bool KFD_PosVelOriAcc::positionObservation(Eigen::Vector3d position, Eigen::Matrix3d covariance, int reject_position_threshol)
+bool KFD_PosVelOriAcc::positionObservation(Eigen::Vector3d position, Eigen::Matrix3d covariance, float reject_position_threshol)
 {
   
       Eigen::Vector3d  position_diference = position_world - position; 
@@ -123,7 +121,27 @@ bool KFD_PosVelOriAcc::positionObservation(Eigen::Vector3d position, Eigen::Matr
       
 }
 
-bool KFD_PosVelOriAcc::orientationObservation( Eigen::Quaterniond orientation, Eigen::Matrix3d covariance, int reject_orientation_threshol)
+bool KFD_PosVelOriAcc::velocityObservation(Eigen::Vector3d velocity_body, Eigen::Matrix3d covariance, float reject_velocity_threshol)
+{
+  
+      Eigen::Vector3d  velocity_diference = velocity_inertial - velocity_body; 
+
+      Eigen::Matrix<double, _VEL_MEASUREMENT_SIZE, StatePosVelOriAcc::SIZE> H; 
+      H.setZero(); 
+      H.block<3,3>(3,3) = Eigen::Matrix3d::Identity(); 
+      
+      //position_world = position;
+      bool reject =  filter->correctionChiSquare<_VEL_MEASUREMENT_SIZE,_VEL_DEGREE_OF_FREEDOM>( velocity_diference,  covariance, H, reject_velocity_threshol );
+      
+      x.vector() = filter->x;
+      
+      correct_state();
+      
+      return reject; 
+      
+}
+
+bool KFD_PosVelOriAcc::orientationObservation( Eigen::Quaterniond orientation, Eigen::Matrix3d covariance, float reject_orientation_threshol)
 {
   
       Eigen::Matrix<double, _ORI_MEASUREMENT_SIZE, StatePosVelOriAcc::SIZE> H; 
