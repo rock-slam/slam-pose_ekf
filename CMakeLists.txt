@@ -34,8 +34,8 @@ set(POSE_HDRS
 
 set(POSE_SRCS
     src/EKFPosYawBiasT.cpp
-    src/KFD_PosVelOriAcc.hpp
-    src/KFD_PosVelAcc.hpp
+    src/KFD_PosVelOriAcc.cpp
+    src/KFD_PosVelAcc.cpp
     )
 
 add_library(pose_ekf SHARED ${POSE_SRCS})
