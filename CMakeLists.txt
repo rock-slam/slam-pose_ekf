@@ -1,61 +1,10 @@
-project(pose_ekf)
-set(PROJECT_VERSION 1.0)
-
-set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR})
-
 cmake_minimum_required(VERSION 2.6)
-include(FindPkgConfig)
+include($ENV{ROCK_CMAKE_MACROS}/Rock.cmake)
+rock_init(pose_ekf 1.0)
 
-add_definitions(-Wall)
+rock_find_cmake(Eigen3 REQUIRED)
+rock_find_cmake(Boost REQUIRED)
 
-find_package(Eigen2 REQUIRED)
-include_directories(${EIGEN2_INCLUDE_DIR})
+rock_export_includedir(${PROJECT_SOURCE_DIR}/src pose_ekf)
 
-find_package(Boost REQUIRED)
-include_directories(${Boost_INCLUDE_DIRS})
-link_directories(${Boost_LIBRARY_DIRS})
-
-pkg_check_modules(DFKI REQUIRED "base-types")
-include_directories(${DFKI_INCLUDE_DIRS})
-link_directories(${DFKI_LIBRARY_DIRS})
-
-include_directories(./src)
-
-set(POSE_HDRS
-    src/FaultDetection.hpp
-    src/KalmanFilter.hpp
-    src/ExtendedKalmanFilter.hpp
-   #src/KalmanFilterTypes.hpp
-    src/EKFPosYawBiasT.hpp
-    src/KFD_PosVelOriAcc.hpp
-    src/KFD_PosVelAcc.hpp
-    src/SlowFastAggregator.hpp
-    )
-
-set(POSE_SRCS
-    src/EKFPosYawBiasT.cpp
-    src/KFD_PosVelOriAcc.cpp
-    src/KFD_PosVelAcc.cpp
-    )
-
-add_library(pose_ekf SHARED ${POSE_SRCS})
-
-target_link_libraries(pose_ekf ${FAULT_DETECTION_LIBRARIES})
-
-
-install(TARGETS pose_ekf
-    RUNTIME DESTINATION bin
-    LIBRARY DESTINATION lib)
-install(FILES ${POSE_HDRS} DESTINATION include/pose_ekf)
-
-configure_file(Doxyfile.in Doxyfile @ONLY)
-add_custom_target(doc doxygen Doxyfile)
-
-configure_file(pose_ekf.pc.in pose_ekf.pc @ONLY)
-install(FILES ${CMAKE_BINARY_DIR}/pose_ekf.pc DESTINATION lib/pkgconfig)
-
-include_directories(${PROJECT_SOURCE_DIR})
-
-add_subdirectory(test)
-
-
+rock_standard_layout()

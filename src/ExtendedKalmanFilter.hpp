@@ -172,7 +172,7 @@ class EKF
 	    if ( reject_threshold!=0 ) 
 	    {
 	      
-		reject_observation = chi_square->rejectData<DEGREE_OF_FREEDOM>(y.start(DEGREE_OF_FREEDOM), S.block(0,0,DEGREE_OF_FREEDOM,DEGREE_OF_FREEDOM) ,reject_threshold );
+		reject_observation = chi_square->rejectData<DEGREE_OF_FREEDOM>(y.head(DEGREE_OF_FREEDOM), S.block(0,0,DEGREE_OF_FREEDOM,DEGREE_OF_FREEDOM) ,reject_threshold );
 		
 	    }  
 	    else

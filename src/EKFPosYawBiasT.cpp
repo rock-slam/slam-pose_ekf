@@ -37,8 +37,8 @@ void EKFPosYawBiasT::predict( const Eigen::Vector3d &translation_world, const Ei
 
     //sets the transition matrix 
     Eigen::Matrix<double, StatePosYawBias::SIZE, 1> f;
-    f.start<3>() = x.xi() + R_w2wb * translation_world;
-    f.end<1>() = x.yaw();
+    f.head<3>() = x.xi() + R_w2wb * translation_world;
+    f.tail<1>() = x.yaw();
 
     //sets the Jacobian of the state transition matrix 
     Eigen::Matrix<double, StatePosYawBias::SIZE, StatePosYawBias::SIZE> J_F
@@ -126,7 +126,7 @@ void EKFPosYawBiasT::copyState ( const EKFPosYawBiasT& kfd )
 void EKFPosYawBiasT::setInitialPosition( const Eigen::Vector3d &position, const Eigen::Matrix3d &covariance )
 {
   
-    filter->x.start<3>() = position;
+    filter->x.head<3>() = position;
     filter->P.block<3,3>(0,0) = covariance; 
     x.vector() = filter->x; 
 	    
