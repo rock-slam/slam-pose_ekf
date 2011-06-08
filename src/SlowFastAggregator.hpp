@@ -56,16 +56,16 @@ class SlowFastAggregator
          for( int i = 0; i < stream_size; i++)
 	{
 	    
-	    const std::pair<size_t, size_t> &status( slow_aggr->getBufferStatus(i) );
+	    const aggregator::StreamStatus &status( slow_aggr->getBufferStatus(i) );
 		
-	    num_sample_slow[i] = status.first; 
+	    num_sample_slow[i] = status.buffer_fill; 
 
 	    //if I am waiting for a particular sample 
 	    if ( waiting_sample[i] )
 	    {
 		
 		//if I received this sample 
-		if( status.first != 0)
+		if( status.buffer_fill != 0)
 		{
 		    
 		    waiting_sample[i] = false;
@@ -83,12 +83,12 @@ class SlowFastAggregator
 
 	    for ( int i = 0; i < stream_size; i++) 
 	    {
-		const std::pair<size_t, size_t> &status( slow_aggr->getBufferStatus(i) );
+		const aggregator::StreamStatus &status( slow_aggr->getBufferStatus(i) );
 		
 		//this indicate which sample was processed 
-		if ( num_sample_slow[i] > status.first )
+		if ( num_sample_slow[i] > status.buffer_fill )
 		{
-		    num_sample_slow[i] = status.first;
+		    num_sample_slow[i] = status.buffer_fill;
 		    
 		    sampleProcessedSlow(i); 
 		    
@@ -108,10 +108,10 @@ class SlowFastAggregator
 	    for( int i = 0; i < stream_size; i++)
 	    {
 		
-		const std::pair<size_t, size_t> &status( slow_aggr->getBufferStatus(i) );
+		const aggregator::StreamStatus &status( slow_aggr->getBufferStatus(i) );
 		
 		//if there is 0 samples in the buffer it means I am waiting for this sample 
-		if( status.first == 0 && !waiting_sample[i] )
+		if( status.buffer_fill == 0 && !waiting_sample[i] )
 		{
 		    
 		    waiting_sample[i] = true; 
@@ -150,9 +150,9 @@ class SlowFastAggregator
 	    {
 		
 		//the number of samples to be processed in the fast filter 
-		const std::pair<size_t, size_t> &status( fast_aggr->getBufferStatus(i) );
+		const aggregator::StreamStatus &status( fast_aggr->getBufferStatus(i) );
 		
-		num_sample_fast[i] = status.first; 
+		num_sample_fast[i] = status.buffer_fill; 
 		
 	    }
 	    
@@ -161,12 +161,12 @@ class SlowFastAggregator
 		
 		for ( int i = 0; i < stream_size; i++) 
 		{
-		    const std::pair<size_t, size_t> &status( fast_aggr->getBufferStatus(i) );
+		    const aggregator::StreamStatus &status( fast_aggr->getBufferStatus(i) );
 		    
 		    //this indicate which sample was processed 
-		    if ( num_sample_fast[i] > status.first )
+		    if ( num_sample_fast[i] > status.buffer_fill )
 		    {
-			num_sample_fast[i] = status.first;
+			num_sample_fast[i] = status.buffer_fill;
 			
 			sampleProcessedFast(i); 
 			
