@@ -30,7 +30,7 @@ namespace pose_ekf {
 
 	vector_t& vector() {return _x;};
 	Eigen::Block<vector_t, 3, 1>& pos_world() {return _pos_w;}
-	Eigen::Block<vector_t, 3, 1>& vel_inertial() {return _vel_i;}	
+	Eigen::Block<vector_t, 3, 1>& vel_world() {return _vel_i;}	
 	Eigen::Block<vector_t, 3, 1>& acc_inertial() {return _acc_i;}
 
     };
@@ -52,7 +52,7 @@ namespace pose_ekf {
 	
     public:
 	/** estimated position, velocity*/ 
-	Eigen::Vector3d velocity_inertial; 
+	Eigen::Vector3d velocity_world; 
 	Eigen::Vector3d position_world; 
 	
 
@@ -62,6 +62,7 @@ namespace pose_ekf {
 	/** process noise */
 	Eigen::Matrix<double, StatePosVelAcc::SIZE, StatePosVelAcc::SIZE> Q;
 	
+	Eigen::Quaterniond R_input_to_world; 
 	
     public:
 	KFD_PosVelAcc();
@@ -74,7 +75,7 @@ namespace pose_ekf {
 	bool positionObservation( Eigen::Vector3d position, Eigen::Matrix3d covariance, float reject_position_threshol); 
 	
 	/** A 3D velocity observation */ 
-	bool velocityObservation(Eigen::Vector3d velocity_body, Eigen::Matrix3d covariance, float reject_velocity_threshol);
+	bool velocityObservation(Eigen::Vector3d velocity, Eigen::Matrix3d covariance, float reject_velocity_threshol);
 	
 	/** set the position */  
 	void setPosition( Eigen::Vector3d position, Eigen::Matrix3d covariance ); 
@@ -84,7 +85,11 @@ namespace pose_ekf {
 	void correct_state();
 	
 	/** input acc and angular velocity data to the filter updating the kalman filter and pose estimation */ 
-	void predict(Eigen::Vector3d acc_intertial, double dt,Eigen::Matrix<double, StatePosVelAcc::SIZE, StatePosVelAcc::SIZE> process_noise);
+	void predict(Eigen::Vector3d acc, double dt, Eigen::Matrix<double, StatePosVelAcc::SIZE, StatePosVelAcc::SIZE> process_noise);
+	
+	void setRotation(Eigen::Quaterniond R); 
+	
+	Eigen::Quaterniond getRotation(){ return R_input_to_world; }
 	
 	/** gets the estimated position */ 
 	Eigen::Vector3d getPosition(); 

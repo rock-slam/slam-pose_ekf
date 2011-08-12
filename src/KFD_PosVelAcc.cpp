@@ -11,7 +11,7 @@ KFD_PosVelAcc::KFD_PosVelAcc()
 {
     filter =  new KalmanFilter::KF<StatePosVelAcc::SIZE>();
     position_world = Eigen::Vector3d::Zero();
-    velocity_inertial = Eigen::Vector3d::Zero();
+    velocity_world = Eigen::Vector3d::Zero();
     
     std::cout << " Instanciando KFD_PosVelAcc " << std::endl; 
 }
@@ -26,18 +26,20 @@ void KFD_PosVelAcc::predict(Eigen::Vector3d acc_intertial, double dt, Eigen::Mat
 {
  	  
 	  /** Inertial Navigation */ 
-	  //gravity correction 
-	  Eigen::Vector3d gravity_inertial = Eigen::Vector3d::Zero(); 
-	  gravity_inertial.z() = 9.871; 
 	  
+	  //gravity correction 
+	  Eigen::Vector3d gravity_world = Eigen::Vector3d::Zero(); 
+	  gravity_world.z() = -9.871; 
+	  
+	  //graviy in inertial frame  
+	  Eigen::Vector3d gravity_inertial =  R_input_to_world.inverse() * gravity_world; 
+
 	  //gravity correction 
 	  acc_intertial = acc_intertial - gravity_inertial; 
 	  
-	  velocity_inertial = velocity_inertial + acc_intertial * dt; 
 	  //inertial navigation 
-	  position_world = position_world 
-	      + velocity_inertial * dt;
-	    
+	  velocity_world = velocity_world + R_input_to_world *  acc_intertial * dt; 
+	  position_world = position_world  + velocity_world * dt; 
 	  
 	  /** Kalman Filter */ 
 	  
@@ -46,17 +48,17 @@ void KFD_PosVelAcc::predict(Eigen::Vector3d acc_intertial, double dt, Eigen::Mat
 	  F.setZero();
 	  
 	  F.block<3,3>(0,3) =  Eigen::Matrix3d::Identity(); 
-	  F.block<3,3>(3,6) =  Eigen::Matrix3d::Identity() ; 
-	  
+	  F.block<3,3>(3,6) =  Eigen::Matrix3d( R_input_to_world ); 
+
 	  
 	 //std::cout << "F \n" << F << std::endl; 
 	/* std::cout 
 	      << "0 0 0 1 0 0 0 0 0 \n" 
 	      << "0 0 0 0 1 0 0 0 0 \n"  
 	      << "0 0 0 0 0 1 0 0 0 \n"  
-	      << "0 0 0 0 0 0 1 0 0 \n" 
-	      << "0 0 0 0 0 0 0 1 0 \n"  
-	      << "0 0 0 0 0 0 0 0 1 \n"  
+	      << "0 0 0 0 0 0 R R R \n" 
+	      << "0 0 0 0 0 0 R R R \n"  
+	      << "0 0 0 0 0 0 R R R \n"  
 	      << "0 0 0 0 0 0 0 0 0 \n" 
 	      << "0 0 0 0 0 0 0 0 0 \n" 
 	      << "0 0 0 0 0 0 0 0 0 \n" 
@@ -70,6 +72,11 @@ void KFD_PosVelAcc::predict(Eigen::Vector3d acc_intertial, double dt, Eigen::Mat
 	  
 	 
 	  
+}
+
+void KFD_PosVelAcc::setRotation(Eigen::Quaterniond R)
+{
+    R_input_to_world = R; 
 }
 
 bool KFD_PosVelAcc::positionObservation(Eigen::Vector3d position, Eigen::Matrix3d covariance, float reject_position_threshol)
@@ -92,10 +99,10 @@ bool KFD_PosVelAcc::positionObservation(Eigen::Vector3d position, Eigen::Matrix3
       
 }
 
-bool KFD_PosVelAcc::velocityObservation(Eigen::Vector3d velocity_body, Eigen::Matrix3d covariance, float reject_velocity_threshol)
+bool KFD_PosVelAcc::velocityObservation(Eigen::Vector3d velocity, Eigen::Matrix3d covariance, float reject_velocity_threshol)
 {
   
-      Eigen::Vector3d  velocity_diference = velocity_inertial - velocity_body; 
+      Eigen::Vector3d  velocity_diference = velocity_world - velocity; 
 
       Eigen::Matrix<double, _VEL_MEASUREMENT_SIZE, StatePosVelAcc::SIZE> H; 
       H.setZero(); 
@@ -131,11 +138,11 @@ void KFD_PosVelAcc::correct_state()
 
     position_world = position_world  -  x.pos_world(); 
     
-    velocity_inertial = velocity_inertial -  x.vel_inertial(); 
+    velocity_world = velocity_world -  x.vel_world(); 
     
     //once the state is corrected I can set the erro estimate to 0 
     x.pos_world() = Eigen::Vector3d::Zero(); 
-    x.vel_inertial() = Eigen::Vector3d::Zero(); 
+    x.vel_world() = Eigen::Vector3d::Zero(); 
     
     filter->x = x.vector(); 
     
@@ -148,7 +155,8 @@ void KFD_PosVelAcc::copyState ( const KFD_PosVelAcc& kfd )
     filter->x = kfd.filter->x;
     filter->P = kfd.filter->P;
     position_world = kfd.position_world; 
-    velocity_inertial = kfd.velocity_inertial;
+    velocity_world = kfd.velocity_world;
+    R_input_to_world = kfd.R_input_to_world;
     
 }
 
@@ -160,7 +168,7 @@ Eigen::Vector3d KFD_PosVelAcc::getPosition()
 	
 Eigen::Vector3d KFD_PosVelAcc::getVelocity()
 {
-    return (velocity_inertial - x.vel_inertial()); 
+    return (velocity_world - x.vel_world()); 
 }
 
 Eigen::Matrix3d KFD_PosVelAcc::getPositionCovariance()
