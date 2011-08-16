@@ -1,7 +1,7 @@
 #ifndef SLOWFASTAGGREGATOR_HPP
 #define SLOWFASTAGGREGATOR_HPP
 
-#include <StreamAligner.hpp>
+#include <aggregator/StreamAligner.hpp>
 
 namespace pose_ekf {
 class SlowFastAggregator
