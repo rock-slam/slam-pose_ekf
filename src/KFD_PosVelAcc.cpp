@@ -29,7 +29,7 @@ void KFD_PosVelAcc::predict(Eigen::Vector3d acc_intertial, double dt, Eigen::Mat
 	  
 	  //gravity correction 
 	  Eigen::Vector3d gravity_world = Eigen::Vector3d::Zero(); 
-	  gravity_world.z() = -9.871; 
+	  gravity_world.z() = 9.871; 
 	  
 	  //graviy in inertial frame  
 	  Eigen::Vector3d gravity_inertial =  R_input_to_world.inverse() * gravity_world; 
@@ -47,10 +47,15 @@ void KFD_PosVelAcc::predict(Eigen::Vector3d acc_intertial, double dt, Eigen::Mat
 	  Eigen::Matrix<double, StatePosVelAcc::SIZE, StatePosVelAcc::SIZE> F;
 	  F.setZero();
 	  
-	  F.block<3,3>(0,3) =  Eigen::Matrix3d::Identity(); 
-	  F.block<3,3>(3,6) =  Eigen::Matrix3d( R_input_to_world ); 
-
+// 	  F.block<3,3>(0,3) =  Eigen::Matrix3d::Identity(); 
+// 	  F.block<3,3>(3,6) =  Eigen::Matrix3d( R_input_to_world ); 
+	  F.block<3,3>(0,3) =  Eigen::Matrix3d( R_input_to_world );
+	  F.block<3,3>(3,6) =  Eigen::Matrix3d::Identity(); 
 	  
+	  F(6,6) = - 0.00136142583242962/dt;
+	  F(7,7) = - 0.00143792179010407/dt;
+	  F(8,8) = - 0.000155846795306766/dt;
+
 	 //std::cout << "F \n" << F << std::endl; 
 	/* std::cout 
 	      << "0 0 0 1 0 0 0 0 0 \n" 
@@ -93,7 +98,7 @@ bool KFD_PosVelAcc::positionObservation(Eigen::Vector3d position, Eigen::Matrix3
       
       x.vector() = filter->x;
       
-      correct_state();
+       correct_state();
       
       return reject; 
       
@@ -181,6 +186,15 @@ Eigen::Matrix3d KFD_PosVelAcc::getVelocityCovariance()
     return filter->P.block<3,3>(3,3);
 }
 
+Eigen::Matrix3d KFD_PosVelAcc::getAccCovariance()
+{
+    return filter->P.block<3,3>(6,6);
+}
+
+Eigen::Vector3d KFD_PosVelAcc::getAccBias()
+{
+    return x.acc_inertial();
+}
 
 
 /** configurarion hook */ 

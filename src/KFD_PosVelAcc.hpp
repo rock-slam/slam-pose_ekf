@@ -97,12 +97,16 @@ namespace pose_ekf {
 	/** gets the estimated velocity */ 
 	Eigen::Vector3d getVelocity();
 	
-
+	Eigen::Vector3d getAccBias(); 
+	
 	/** get the Position covariance */
 	Eigen::Matrix3d getPositionCovariance(); 
 	
 	/** get the Velocity covariance */
 	Eigen::Matrix3d getVelocityCovariance();
+	
+	/** get the Acceleration  covariance */
+	Eigen::Matrix3d getAccCovariance();
 	
 	/** set the inital values for state x and covariance P */
 	void init(const Eigen::Matrix<double, StatePosVelAcc::SIZE, StatePosVelAcc::SIZE> &P, const Eigen::Matrix<double,StatePosVelAcc::SIZE,1> &x); 
