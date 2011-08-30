@@ -38,8 +38,8 @@ void KFD_PosVelAcc::predict(Eigen::Vector3d acc_intertial, double dt, Eigen::Mat
 	  acc_intertial = acc_intertial - gravity_inertial; 
 	  
 	  //inertial navigation 
-	  velocity_world = velocity_world + R_input_to_world *  acc_intertial * dt; 
-	  position_world = position_world  + velocity_world * dt; 
+	  velocity_world = velocity_world +   acc_intertial * dt; 
+	  position_world = position_world  + R_input_to_world * velocity_world * dt; 
 	  
 	  /** Kalman Filter */ 
 	  
@@ -108,14 +108,12 @@ bool KFD_PosVelAcc::velocityObservation(Eigen::Vector3d velocity, Eigen::Matrix3
 {
   
       Eigen::Vector3d  velocity_diference = velocity_world - velocity; 
-
+      //std::cout << " Vel dif " << velocity_diference << std::endl; 
       Eigen::Matrix<double, _VEL_MEASUREMENT_SIZE, StatePosVelAcc::SIZE> H; 
       H.setZero(); 
-      H.block<3,3>(3,3) = Eigen::Matrix3d::Identity(); 
-      
+      H.block<3,3>(0,3) = Eigen::Matrix3d::Identity(); 
       //position_world = position;
       bool reject =  filter->correctionChiSquare<_VEL_MEASUREMENT_SIZE,_VEL_DEGREE_OF_FREEDOM>( velocity_diference,  covariance, H, reject_velocity_threshol );
-      
       x.vector() = filter->x;
       
       correct_state();
@@ -124,6 +122,23 @@ bool KFD_PosVelAcc::velocityObservation(Eigen::Vector3d velocity, Eigen::Matrix3
       
 }
 
+bool KFD_PosVelAcc::positionZObservation(double z, double error, double rejection_threshold) 
+{
+    Eigen::Matrix<double,1,1>  dif;
+    dif(0,0) = position_world(2) - z; 
+    Eigen::Matrix<double,1 ,1> cov;
+    cov(0,0) = error; 
+    Eigen::Matrix<double, 1, StatePosVelAcc::SIZE> H; 
+    H.setZero(); 
+    H(0,2) = 1; 
+    bool reject =  filter->correctionChiSquare<1,1>( dif,  cov, H, rejection_threshold );
+    x.vector() = filter->x;
+      
+    correct_state();
+      
+    return reject; 
+
+}
 void KFD_PosVelAcc::setPosition( Eigen::Vector3d position, Eigen::Matrix3d covariance )
 {
   

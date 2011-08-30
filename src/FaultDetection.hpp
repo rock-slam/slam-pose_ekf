@@ -3,7 +3,7 @@
 #define FaultDetection_HPP
 #include <Eigen/Core>
 #include <Eigen/Geometry>
-
+//#include <iostream>
 namespace pose_ekf{ 
 
 
@@ -20,7 +20,7 @@ class ChiSquared
 		    float threshold)
     {
 
-      
+	 // std::cout << " CHI " << (innovation.transpose() * innovation_covariance * innovation)[0] << std::endl; 
 	  if ( (innovation.transpose() * innovation_covariance * innovation)[0] <= threshold )  
 	      return false;
 	  else

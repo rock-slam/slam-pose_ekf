@@ -77,6 +77,9 @@ namespace pose_ekf {
 	/** A 3D velocity observation */ 
 	bool velocityObservation(Eigen::Vector3d velocity, Eigen::Matrix3d covariance, float reject_velocity_threshol);
 	
+	/** A z position observation */
+	bool positionZObservation(double z, double error, double rejection_threshold) ;
+	
 	/** set the position */  
 	void setPosition( Eigen::Vector3d position, Eigen::Matrix3d covariance ); 
 
