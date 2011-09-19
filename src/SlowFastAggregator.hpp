@@ -12,14 +12,22 @@ class SlowFastAggregator
       /** instance of the aggregator which aligns the readings in time */
 	aggregator::StreamAligner *slow_aggr;
 	aggregator::StreamAligner *fast_aggr;
-      	bool waited_sample_processed;
-	bool *waiting_sample; 
-	size_t *num_sample_slow; 
-	size_t *num_sample_fast; 
+      	
+	/** The number of streams in the aggr*/
 	int stream_size; 
+
+	/** The total number of streams previously dropped by the aggregator*/
+	int *prev_num_dropped_stream_slow; 
+	int *prev_num_dropped_stream_fast; 
+	/** The previous number of streams processed in the slow aggregator */ 
+	size_t *prev_num_processed_streams_slow; 
+	/** if there needs to be a copy */ 
+	bool copy; 
 	
   public:
+      
     SlowFastAggregator(){}
+    
     void configureSlowFastAggr( aggregator::StreamAligner& slow_aggr,  aggregator::StreamAligner& fast_aggr )
     {
       
@@ -28,159 +36,97 @@ class SlowFastAggregator
 	
 	stream_size = slow_aggr.getStreamSize();
 	
-	num_sample_slow = new size_t[stream_size];
-	num_sample_fast = new size_t[stream_size];
+	prev_num_dropped_stream_slow = new int[stream_size];
+	prev_num_dropped_stream_fast = new int[stream_size];
+	prev_num_processed_streams_slow = new size_t[stream_size];
 	
-	waiting_sample = new bool[stream_size];
-	for ( int i = 0; i < stream_size; i++) 
-	    waiting_sample[i] = false;
+	for(int i = 0; i < stream_size; i++) 
+	{
+	    prev_num_dropped_stream_slow[i] = 0; 
+	    prev_num_dropped_stream_fast[i] = 0; 
+	    prev_num_processed_streams_slow[i] = 0; 
+	}
 	
-	waited_sample_processed = false; 
-	
+	copy = false; 
 	
     }
- 
-    /**
-      sample_idx - is the index of the sample processed 
-    */ 
-    virtual void sampleProcessedSlow( int sample_idx )=0;
-    virtual void sampleProcessedFast( int sample_idx )=0;
+    
+    /** 
+     * If there is a copy between the slow and fast filter this function is called. 
+     */ 
+   virtual void copyState()=0; 
     
     /**
-      process the sample of the slow filter
-      return boolean - if there should be a copy or not from the slow filter to the fast filter
-      the copy condition is if the slow Filter processed a sample not processed by the fast filter
-    */
-    bool slowAggrStep( double max_delay )
+     * Proces the slow and fast aggregator and copy between them if needed. 
+     *The aggregators are implicitly copied  
+     * The copy is triggered when the slow filter process a stream that was dropped by the fast filter. 
+     */
+    void step()
     {
-         for( int i = 0; i < stream_size; i++)
-	{
-	    
-	    const aggregator::StreamStatus &status( slow_aggr->getBufferStatus(i) );
-		
-	    num_sample_slow[i] = status.buffer_fill; 
-
-	    //if I am waiting for a particular sample 
-	    if ( waiting_sample[i] )
-	    {
-		
-		//if I received this sample 
-		if( status.buffer_fill != 0)
-		{
-		    
-		    waiting_sample[i] = false;
-		    //slow filter will use a sample not used by the fast filter
-		    waited_sample_processed = true;
-		    
-		}
-	    }
-	    
-	}
- 
-	// then call the streams in the relevant order
-	while( slow_aggr->step() )
-	{	
-
-	    for ( int i = 0; i < stream_size; i++) 
-	    {
-		const aggregator::StreamStatus &status( slow_aggr->getBufferStatus(i) );
-		
-		//this indicate which sample was processed 
-		if ( num_sample_slow[i] > status.buffer_fill )
-		{
-		    num_sample_slow[i] = status.buffer_fill;
-		    
-		    sampleProcessedSlow(i); 
-		    
-		    //found the sample that was processed 
-		    break; 
-		}
-		
-	    }
-
-	}
 	
-	if ( slow_aggr->getLatency().toSeconds() >  max_delay )
+	// call the slow aggregator streams in the relevant order
+	while( slow_aggr->step() );
+	
+	//this logic is for determining if a copy is needed, so only triggered if there is no pending copy 
+	if(!copy)
 	{
-	    //if there is latency in the slow filter, it means that it is waiting for a sample,
-	    //so the number of samples on a buffer for the stream it is waiting is zero. 
-	    
+	    //Check which streams were dropped by the fast filter, but weren't dropped by the slow filter.
 	    for( int i = 0; i < stream_size; i++)
 	    {
+		const aggregator::StreamStatus &status_fast( fast_aggr->getBufferStatus(i) );
+		const aggregator::StreamStatus &status_slow( slow_aggr->getBufferStatus(i) );
 		
-		const aggregator::StreamStatus &status( slow_aggr->getBufferStatus(i) );
+		int total_stream_dropped_fast =  status_fast.samples_dropped_buffer_full + status_fast.samples_dropped_late_arriving;
+		int total_stream_dropped_slow =  status_slow.samples_dropped_buffer_full + status_slow.samples_dropped_late_arriving;
 		
-		//if there is 0 samples in the buffer it means I am waiting for this sample 
-		if( status.buffer_fill == 0 && !waiting_sample[i] )
+		int prev_dif = prev_num_dropped_stream_fast[i] - prev_num_dropped_stream_slow[i]; 
+		int current_dif = total_stream_dropped_fast - total_stream_dropped_slow; 
+		//verify if a stream was dropped by the fast filter, but wasen't dropped by the slow filter
+		if( prev_dif > current_dif )
 		{
-		    
-		    waiting_sample[i] = true; 
-		}
-		
-	    }
-	    
-	    if ( waited_sample_processed ) 
-	    {
-		waited_sample_processed = false; 
-		return true; 
-	    
-	    }
-	    else 
-	    {
-		return false; 
-	    }
-	}
-	else 
-	{
-	    //even if there is a new sample processed the slow filter aint delayed enouth that the fast filter needs to be processed
-	    return false; 
-	}
-    }
-    
-    /**
-    * process the fast agregator sample if the slow agg has a latency bigger than the max_delay
-    */ 
-    void fastAggrStep( double max_delay )
-    {
-      
-	if ( slow_aggr->getLatency().toSeconds() >  max_delay )
-	{	
-	  
-	    for( int i = 0; i < stream_size; i++)
-	    {
-		
-		//the number of samples to be processed in the fast filter 
-		const aggregator::StreamStatus &status( fast_aggr->getBufferStatus(i) );
-		
-		num_sample_fast[i] = status.buffer_fill; 
-		
-	    }
-	    
-	    while ( fast_aggr->step() )
-	    {
-		
-		for ( int i = 0; i < stream_size; i++) 
-		{
-		    const aggregator::StreamStatus &status( fast_aggr->getBufferStatus(i) );
-		    
-		    //this indicate which sample was processed 
-		    if ( num_sample_fast[i] > status.buffer_fill )
+		    //verify if that stream of that type was procces by the slow filter 
+		    if( prev_num_processed_streams_slow[i] > status_slow.samples_processed)
 		    {
-			num_sample_fast[i] = status.buffer_fill;
-			
-			sampleProcessedFast(i); 
-			
-			//found the sample that was processed 
+			//if the stream process was of a type dropped by the fast filter there need to be a copy
+			copy = true; 
 			break; 
 		    }
-		
 		}
-		
+		prev_num_processed_streams_slow[i] = status_slow.samples_processed;
+		prev_num_dropped_stream_slow[i] = total_stream_dropped_slow; 
+		prev_num_dropped_stream_fast[i] = total_stream_dropped_fast; 
 	    }
 	    
+	}
+	
+	//verify if there is a need to procces the fast aggregator 
+	if ( slow_aggr->getLatency().toSeconds() >  fast_aggr->getTimeOut().toSeconds() )
+	{
+	    if( copy ) 
+	    {
+		copy = false; 
+		fast_aggr->copyState( *slow_aggr );
+		copyState(); 
+		
+		//since there was a copy this get the new ammount of stream dropped 
+		for( int i = 0; i < stream_size; i++)
+		{
+			const aggregator::StreamStatus &status_slow( slow_aggr->getBufferStatus(i) );
+			
+			size_t total_stream_dropped_slow =  status_slow.samples_dropped_buffer_full + status_slow.samples_dropped_late_arriving;
+			
+			prev_num_processed_streams_slow[i] = status_slow.samples_processed;
+			prev_num_dropped_stream_slow[i] = total_stream_dropped_slow; 
+			prev_num_dropped_stream_fast[i] = total_stream_dropped_slow; 
+		}
+	    }
+	    
+	    fast_aggr->step();
 
 	}
+
     }
+
     
 };
 }
