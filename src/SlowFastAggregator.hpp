@@ -16,9 +16,6 @@ class SlowFastAggregator
 	/** The number of streams in the aggr*/
 	int stream_size; 
 
-	/** The total number of streams previously dropped by the aggregator*/
-	int *prev_num_dropped_stream_slow; 
-	int *prev_num_dropped_stream_fast; 
 	/** The previous number of streams processed in the slow aggregator */ 
 	size_t *prev_num_processed_streams_slow; 
 	/** if there needs to be a copy */ 
@@ -36,14 +33,9 @@ class SlowFastAggregator
 	
 	stream_size = slow_aggr.getStreamSize();
 	
-	prev_num_dropped_stream_slow = new int[stream_size];
-	prev_num_dropped_stream_fast = new int[stream_size];
 	prev_num_processed_streams_slow = new size_t[stream_size];
-	
 	for(int i = 0; i < stream_size; i++) 
 	{
-	    prev_num_dropped_stream_slow[i] = 0; 
-	    prev_num_dropped_stream_fast[i] = 0; 
 	    prev_num_processed_streams_slow[i] = 0; 
 	}
 	
@@ -78,27 +70,26 @@ class SlowFastAggregator
 		
 		int total_stream_dropped_fast =  status_fast.samples_dropped_buffer_full + status_fast.samples_dropped_late_arriving;
 		int total_stream_dropped_slow =  status_slow.samples_dropped_buffer_full + status_slow.samples_dropped_late_arriving;
-		
-		int prev_dif = prev_num_dropped_stream_fast[i] - prev_num_dropped_stream_slow[i]; 
 		int current_dif = total_stream_dropped_fast - total_stream_dropped_slow; 
 		//verify if a stream was dropped by the fast filter, but wasen't dropped by the slow filter
-		if( prev_dif > current_dif )
+		if( current_dif > 0 )
 		{
 		    //verify if that stream of that type was procces by the slow filter 
-		    if( prev_num_processed_streams_slow[i] > status_slow.samples_processed)
+		    if( prev_num_processed_streams_slow[i] < status_slow.samples_processed)
 		    {
 			//if the stream process was of a type dropped by the fast filter there need to be a copy
 			copy = true; 
 			break; 
 		    }
 		}
+
 		prev_num_processed_streams_slow[i] = status_slow.samples_processed;
-		prev_num_dropped_stream_slow[i] = total_stream_dropped_slow; 
-		prev_num_dropped_stream_fast[i] = total_stream_dropped_fast; 
+
 	    }
 	    
 	}
-	
+	 
+/*	std::cout << " MUST COPY " << copy << std::endl; */
 	//verify if there is a need to procces the fast aggregator 
 	if ( slow_aggr->getLatency().toSeconds() >  fast_aggr->getTimeOut().toSeconds() )
 	{
@@ -116,8 +107,6 @@ class SlowFastAggregator
 			size_t total_stream_dropped_slow =  status_slow.samples_dropped_buffer_full + status_slow.samples_dropped_late_arriving;
 			
 			prev_num_processed_streams_slow[i] = status_slow.samples_processed;
-			prev_num_dropped_stream_slow[i] = total_stream_dropped_slow; 
-			prev_num_dropped_stream_fast[i] = total_stream_dropped_slow; 
 		}
 	    }
 	    
