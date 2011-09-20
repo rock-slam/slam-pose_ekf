@@ -103,14 +103,10 @@ class SlowFastAggregator
 		for( int i = 0; i < stream_size; i++)
 		{
 			const aggregator::StreamStatus &status_slow( slow_aggr->getBufferStatus(i) );
-			
-			size_t total_stream_dropped_slow =  status_slow.samples_dropped_buffer_full + status_slow.samples_dropped_late_arriving;
-			
 			prev_num_processed_streams_slow[i] = status_slow.samples_processed;
 		}
 	    }
-	    
-	    fast_aggr->step();
+	while( fast_aggr->step() );
 
 	}
 
