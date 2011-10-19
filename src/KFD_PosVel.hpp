@@ -75,6 +75,9 @@ namespace pose_ekf {
 	/** set the position */  
 	void setPosition( Eigen::Vector3d position, Eigen::Matrix3d covariance ); 
 
+	/** set the position */  
+	void setVelocity( Eigen::Vector3d velocity, Eigen::Matrix3d covariance ); 
+	
 	/** prediction step of the kalman filter */ 
 	void predict(Eigen::Quaterniond R_body_2_world, double dt, Eigen::Matrix<double, StatePosVel::SIZE, StatePosVel::SIZE> process_noise);
 	

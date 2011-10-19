@@ -105,7 +105,15 @@ void KFD_PosVel::setPosition( Eigen::Vector3d position, Eigen::Matrix3d covarian
       filter->x = x.vector();
 
 }
+void KFD_PosVel::setVelocity( Eigen::Vector3d velocity, Eigen::Matrix3d covariance )
+{
+      //The initial covariance in position 
+      filter->P.block<3,3>(3,3) = covariance ;
+      
+      x.vel_body() = velocity; 
+      filter->x = x.vector();
 
+}
 
 void KFD_PosVel::copyState ( const KFD_PosVel& kfd )
 {
