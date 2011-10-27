@@ -89,7 +89,7 @@ class SlowFastAggregator
 	    
 	}
 	 
-/*	std::cout << " MUST COPY " << copy << std::endl; */
+	//std::cout << " MUST COPY " << copy << std::endl; 
 	//verify if there is a need to procces the fast aggregator 
 	if ( slow_aggr->getLatency().toSeconds() >  fast_aggr->getTimeOut().toSeconds() )
 	{
