@@ -212,7 +212,7 @@ class KF
 	    else
 	    { 
 		
-		std::cout<< " Rejected Observation " << std::endl; 
+//		std::cout<< " Rejected Observation " << std::endl; 
 		return true; 
 	    
 	    }
