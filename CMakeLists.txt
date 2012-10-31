@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.6)
-include($ENV{ROCK_CMAKE_MACROS}/Rock.cmake)
+find_package(Rock)
 rock_init(pose_ekf 1.0)
 
 rock_find_pkgconfig(BASE_TYPES base-types REQUIRED)
